@@ -1,0 +1,52 @@
+# 🐧 My Penguin Assistant - Cursor Rules
+
+## 프로젝트 컨텍스트
+- **프로젝트명**: My Penguin Assistant (나만의 펭귄 개인 비서)
+- **기술스택**: Electron + React + TypeScript + MUI + Firebase + Ollama
+- **테마**: 펭귄 테마 (검은색, 흰색, 노란색 조합)
+- **사용자**: ADHD 친화적 UI/UX 고려
+- **언어**: 한국어 전용
+
+## 주요 기능
+1. **컨디션 트래커**: 시간대별 컨디션 기록 (일주일 단위)
+2. **프로젝트 매니저**: 칸반 보드 스타일 프로젝트 관리
+3. **AI 채팅**: 로컬 Ollama AI (qwen2.5:7b 모델)
+4. **대시보드**: 전체 현황 요약
+5. **분석**: 컨디션 패턴 분석
+6. **프로필**: 성격 분석 및 맞춤 추천
+7. **관리자 패널**: 사용자 승인 관리
+
+## 코딩 규칙
+- **언어**: TypeScript 우선
+- **스타일**: 함수형 컴포넌트 + React Hooks
+- **상태관리**: useState, useEffect 기본 사용
+- **데이터**: Firebase Firestore + 로컬 Electron 스토리지
+- **UI**: Material-UI (MUI) 컴포넌트 활용
+- **이모지**: 적극 활용 (특히 🐧🐟🐻‍❄️)
+
+## 디자인 가이드
+- **색상**: 검은색(#000), 흰색(#fff), 노란색(#ffd700)
+- **이모지**: 펭귄(🐧), 생선(🐟), 북극곰(🐻‍❄️), 눈(❄️)
+- **UI**: 미니멀, ADHD 친화적 (정보 최소화)
+- **반응형**: 데스크톱 + 모바일 대응
+
+## Firebase 구조
+- **인증**: Google OAuth 2.0
+- **승인**: AUTHORIZED_EMAILS 배열로 사용자 제한
+- **컬렉션**: users/{userId}/{conditions,projects,settings,chatHistory}
+
+## AI 설정
+- **모델**: qwen2.5:7b (한국어 특화)
+- **서버**: Ollama 로컬 서버 (localhost:11434)
+- **규칙**: 100% 한국어, 150자 이내, 이모지 활용
+
+## 배포
+- **개발**: `npm run dev` (Electron + Vite)
+- **웹**: GitHub Pages (https://callipenguin.github.io/my-penguin/)
+- **빌드**: `npm run build && npm run deploy`
+
+## 문제 해결 패턴
+1. **데이터 손실**: Firebase + Electron 이중 저장
+2. **언어 혼재**: containsForeignLanguage() 필터링
+3. **UI 복잡성**: ADHD 고려한 단순화
+4. **권한 관리**: 승인된 이메일만 접근 허용 

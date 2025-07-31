@@ -15,13 +15,15 @@ import {
   Button,
   Divider,
 } from "@mui/material";
-import { TrendingUp, Assignment, Psychology, Schedule, EmojiEmotions, Lightbulb } from "@mui/icons-material";
+import { TrendingUp, Assignment, Psychology, EmojiEmotions, Lightbulb } from "@mui/icons-material";
+import { useNavigate } from "react-router-dom";
 import { Project } from "../types";
 import dayjs from "dayjs";
 import { loadUserData, getCurrentUser } from "../utils/firebase";
 
 const Dashboard: React.FC = () => {
   const theme = useTheme();
+  const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
   const [currentTime, setCurrentTime] = useState(dayjs());
 
@@ -150,7 +152,7 @@ const Dashboard: React.FC = () => {
                 }}
               />
               <Box sx={{ mt: 3 }}>
-                <Button variant="outlined" size="small" onClick={() => (window.location.href = "/condition")}>
+                <Button variant="outlined" size="small" onClick={() => navigate("/condition")}>
                   기록하기 🐟
                 </Button>
               </Box>
@@ -205,7 +207,7 @@ const Dashboard: React.FC = () => {
                   <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
                     {projects.length === 0 ? "새로운 빙하를 만들어보세요!" : "프로젝트를 따뜻하게 녹여보세요!"}
                   </Typography>
-                  <Button variant="outlined" size="small" onClick={() => (window.location.href = "/projects")}>
+                  <Button variant="outlined" size="small" onClick={() => navigate("/projects")}>
                     {projects.length === 0 ? "만들기 🏔️" : "관리하기 ⚙️"}
                   </Button>
                 </Box>
@@ -260,32 +262,17 @@ const Dashboard: React.FC = () => {
               variant="outlined"
               size="small"
               startIcon={<EmojiEmotions />}
-              onClick={() => (window.location.href = "/condition")}
+              onClick={() => navigate("/condition")}
             >
               컨디션 기록
             </Button>
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<Assignment />}
-              onClick={() => (window.location.href = "/projects")}
-            >
+            <Button variant="outlined" size="small" startIcon={<Assignment />} onClick={() => navigate("/projects")}>
               프로젝트 관리
             </Button>
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<TrendingUp />}
-              onClick={() => (window.location.href = "/analytics")}
-            >
+            <Button variant="outlined" size="small" startIcon={<TrendingUp />} onClick={() => navigate("/analytics")}>
               데이터 분석
             </Button>
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<Psychology />}
-              onClick={() => (window.location.href = "/chat")}
-            >
+            <Button variant="outlined" size="small" startIcon={<Psychology />} onClick={() => navigate("/chat")}>
               AI 채팅
             </Button>
           </Box>

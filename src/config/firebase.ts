@@ -2,8 +2,8 @@ import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
-// 🔥 Firebase Console에서 복사한 설정으로 교체하세요!
-// https://console.firebase.google.com -> my-penguin 프로젝트 -> Project Settings -> Config
+// 🔥 TODO: Firebase Console에서 복사한 설정으로 교체하세요!
+// Firebase Console > 프로젝트 설정 > 일반 > 내 앱 > SDK 설정 및 구성
 const firebaseConfig = {
   apiKey: "AIzaSyD0T3knqD57-69U4rKsZ1f-Nb1Kd6Rf5a0",
   authDomain: "my-personnal-penguin.firebaseapp.com",

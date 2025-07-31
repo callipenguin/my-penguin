@@ -11,6 +11,7 @@ import {
   ListItemIcon,
   ListItemText,
   useTheme,
+  useMediaQuery,
   Avatar,
   IconButton,
   Menu,
@@ -27,12 +28,15 @@ import {
   Person as PersonIcon,
   Logout,
   MoreVert,
+  Menu as MenuIcon,
+  ChevronLeft,
 } from "@mui/icons-material";
 import { useLocation, useNavigate } from "react-router-dom";
 import { User } from "firebase/auth";
 import { signOut, isAdmin } from "../utils/firebase";
 
 const DRAWER_WIDTH = 180;
+const MOBILE_DRAWER_WIDTH = 280; // 모바일에서는 조금 더 넓게
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -45,7 +49,28 @@ const Layout: React.FC<LayoutProps> = ({ children, user }) => {
   const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
+  // 🔥 반응형 및 사이드바 토글 상태
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [desktopCollapsed, setDesktopCollapsed] = useState(false);
+
   const isUserAdmin = isAdmin(user.email);
+
+  // 🎯 사이드바 토글 함수들
+  const handleMobileDrawerToggle = () => {
+    setMobileOpen(!mobileOpen);
+  };
+
+  const handleDesktopDrawerToggle = () => {
+    setDesktopCollapsed(!desktopCollapsed);
+  };
+
+  const handleNavigate = (path: string) => {
+    navigate(path);
+    if (isMobile) {
+      setMobileOpen(false); // 모바일에서 메뉴 선택 시 자동 닫기
+    }
+  };
 
   const menuItems = [
     {
@@ -132,59 +157,74 @@ const Layout: React.FC<LayoutProps> = ({ children, user }) => {
     }
   };
 
-  return (
-    <Box sx={{ display: "flex", width: "100%" }}>
-      {/* 사이드바 */}
-      <Drawer
-        variant="permanent"
+  // 🎨 사이드바 콘텐츠 컴포넌트
+  const drawerContent = (
+    <>
+      {/* 로고 영역 */}
+      <Box
         sx={{
-          width: DRAWER_WIDTH,
-          flexShrink: 0,
-          "& .MuiDrawer-paper": {
-            width: DRAWER_WIDTH,
-            boxSizing: "border-box",
-            bgcolor: theme.palette.background.paper,
-            borderRight: `1px solid ${theme.palette.divider}`,
-          },
+          p: 2,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: desktopCollapsed && !isMobile ? "center" : "space-between",
+          borderBottom: `1px solid ${theme.palette.divider}`,
+          minHeight: 64,
         }}
       >
-        {/* 로고 영역 */}
-        <Box
-          sx={{
-            p: 2,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            borderBottom: `1px solid ${theme.palette.divider}`,
-          }}
-        >
+        {(!desktopCollapsed || isMobile) && (
           <Typography variant="h6" fontWeight="bold" color="primary">
             🐧 펭귄비서
           </Typography>
-        </Box>
+        )}
 
-        {/* 메뉴 목록 */}
-        <List sx={{ flexGrow: 1 }}>
-          {menuItems.map((item) => (
-            <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
-              <ListItemButton
-                selected={location.pathname === item.path}
-                onClick={() => navigate(item.path)}
-                sx={{
-                  mx: 1,
-                  borderRadius: 1,
-                  "&.Mui-selected": {
-                    backgroundColor: item.color + "15",
-                    "&:hover": {
-                      backgroundColor: item.color + "25",
-                    },
-                  },
+        {/* 데스크톱 토글 버튼 */}
+        {!isMobile && (
+          <IconButton
+            onClick={handleDesktopDrawerToggle}
+            size="small"
+            sx={{
+              color: theme.palette.text.secondary,
+              transform: desktopCollapsed ? "rotate(180deg)" : "rotate(0deg)",
+              transition: "transform 0.3s",
+            }}
+          >
+            <ChevronLeft />
+          </IconButton>
+        )}
+      </Box>
+
+      {/* 메뉴 목록 */}
+      <List sx={{ flexGrow: 1, px: 1 }}>
+        {menuItems.map((item) => (
+          <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
+            <ListItemButton
+              selected={location.pathname === item.path}
+              onClick={() => handleNavigate(item.path)}
+              sx={{
+                borderRadius: 2,
+                justifyContent: desktopCollapsed && !isMobile ? "center" : "flex-start",
+                px: desktopCollapsed && !isMobile ? 1 : 2,
+                "&.Mui-selected": {
+                  backgroundColor: item.color + "15",
                   "&:hover": {
-                    backgroundColor: item.color + "10",
+                    backgroundColor: item.color + "25",
                   },
+                },
+                "&:hover": {
+                  backgroundColor: item.color + "10",
+                },
+              }}
+            >
+              <ListItemIcon
+                sx={{
+                  color: item.color,
+                  minWidth: desktopCollapsed && !isMobile ? "auto" : 35,
+                  justifyContent: "center",
                 }}
               >
-                <ListItemIcon sx={{ color: item.color, minWidth: 35 }}>{item.icon}</ListItemIcon>
+                {item.icon}
+              </ListItemIcon>
+              {(!desktopCollapsed || isMobile) && (
                 <ListItemText
                   primary={item.text}
                   primaryTypographyProps={{
@@ -192,31 +232,109 @@ const Layout: React.FC<LayoutProps> = ({ children, user }) => {
                     fontWeight: location.pathname === item.path ? 600 : 400,
                   }}
                 />
-              </ListItemButton>
-            </ListItem>
-          ))}
-        </List>
+              )}
+            </ListItemButton>
+          </ListItem>
+        ))}
+      </List>
 
-        {/* 사용자 정보 */}
-        <Box sx={{ p: 2, borderTop: `1px solid ${theme.palette.divider}` }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <Avatar src={user.photoURL || undefined} sx={{ width: 32, height: 32 }}>
-              {user.displayName?.[0] || user.email?.[0] || "U"}
-            </Avatar>
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Typography variant="caption" noWrap>
-                {user.displayName || user.email}
-              </Typography>
-            </Box>
-            <IconButton size="small" onClick={handleMenuClick}>
-              <MoreVert fontSize="small" />
-            </IconButton>
-          </Box>
+      {/* 사용자 정보 */}
+      <Box sx={{ p: 2, borderTop: `1px solid ${theme.palette.divider}` }}>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+            justifyContent: desktopCollapsed && !isMobile ? "center" : "flex-start",
+          }}
+        >
+          <Avatar src={user.photoURL || undefined} sx={{ width: 32, height: 32 }}>
+            {user.displayName?.[0] || user.email?.[0] || "U"}
+          </Avatar>
+          {(!desktopCollapsed || isMobile) && (
+            <>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography variant="caption" noWrap>
+                  {user.displayName || user.email}
+                </Typography>
+              </Box>
+              <IconButton size="small" onClick={handleMenuClick}>
+                <MoreVert fontSize="small" />
+              </IconButton>
+            </>
+          )}
         </Box>
-      </Drawer>
+      </Box>
+    </>
+  );
+
+  // 📱 현재 drawer width 계산
+  const currentDrawerWidth = isMobile ? MOBILE_DRAWER_WIDTH : desktopCollapsed ? 72 : DRAWER_WIDTH;
+
+  return (
+    <Box sx={{ display: "flex", width: "100%" }}>
+      {/* 🖥️ 데스크톱 사이드바 */}
+      {!isMobile && (
+        <Drawer
+          variant="permanent"
+          sx={{
+            width: currentDrawerWidth,
+            flexShrink: 0,
+            transition: theme.transitions.create("width", {
+              easing: theme.transitions.easing.sharp,
+              duration: theme.transitions.duration.enteringScreen,
+            }),
+            "& .MuiDrawer-paper": {
+              width: currentDrawerWidth,
+              boxSizing: "border-box",
+              bgcolor: theme.palette.background.paper,
+              borderRight: `1px solid ${theme.palette.divider}`,
+              transition: theme.transitions.create("width", {
+                easing: theme.transitions.easing.sharp,
+                duration: theme.transitions.duration.enteringScreen,
+              }),
+              overflowX: "hidden",
+            },
+          }}
+        >
+          {drawerContent}
+        </Drawer>
+      )}
+
+      {/* 📱 모바일 사이드바 */}
+      {isMobile && (
+        <Drawer
+          variant="temporary"
+          open={mobileOpen}
+          onClose={handleMobileDrawerToggle}
+          ModalProps={{
+            keepMounted: true, // 모바일 성능 향상
+          }}
+          sx={{
+            "& .MuiDrawer-paper": {
+              width: MOBILE_DRAWER_WIDTH,
+              boxSizing: "border-box",
+              bgcolor: theme.palette.background.paper,
+            },
+          }}
+        >
+          {drawerContent}
+        </Drawer>
+      )}
 
       {/* 메인 콘텐츠 영역 */}
-      <Box component="main" sx={{ flexGrow: 1, overflow: "hidden" }}>
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          overflow: "hidden",
+          width: isMobile ? "100%" : `calc(100% - ${currentDrawerWidth}px)`,
+          transition: theme.transitions.create("width", {
+            easing: theme.transitions.easing.sharp,
+            duration: theme.transitions.duration.enteringScreen,
+          }),
+        }}
+      >
         {/* 상단 앱바 */}
         <AppBar
           position="static"
@@ -227,9 +345,31 @@ const Layout: React.FC<LayoutProps> = ({ children, user }) => {
           }}
         >
           <Toolbar>
-            <Typography variant="h6" component="div" sx={{ flexGrow: 1, color: theme.palette.text.primary }}>
+            {/* 📱 모바일 햄버거 메뉴 */}
+            {isMobile && (
+              <IconButton
+                color="inherit"
+                aria-label="open drawer"
+                edge="start"
+                onClick={handleMobileDrawerToggle}
+                sx={{ mr: 2, color: theme.palette.text.primary }}
+              >
+                <MenuIcon />
+              </IconButton>
+            )}
+
+            <Typography
+              variant="h6"
+              component="div"
+              sx={{
+                flexGrow: 1,
+                color: theme.palette.text.primary,
+                fontSize: isMobile ? "1rem" : "1.25rem", // 모바일에서 폰트 크기 조정
+              }}
+            >
               {getCurrentPageTitle()}
             </Typography>
+
             <Avatar src={user.photoURL || undefined} sx={{ width: 32, height: 32 }}>
               {user.displayName?.[0] || user.email?.[0] || "U"}
             </Avatar>
@@ -237,7 +377,20 @@ const Layout: React.FC<LayoutProps> = ({ children, user }) => {
         </AppBar>
 
         {/* 페이지 콘텐츠 */}
-        <Box sx={{ height: "calc(100vh - 64px)", overflow: "auto", p: 0 }}>{children}</Box>
+        <Box
+          sx={{
+            height: "calc(100vh - 64px)",
+            overflow: "auto",
+            p: 0,
+            // 모바일에서 추가 패딩 제거
+            "& > *": {
+              px: isMobile ? 1 : 3,
+              py: isMobile ? 1 : 3,
+            },
+          }}
+        >
+          {children}
+        </Box>
       </Box>
 
       {/* 사용자 메뉴 */}

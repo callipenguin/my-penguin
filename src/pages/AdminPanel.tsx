@@ -21,6 +21,7 @@ import {
   Alert,
   useTheme,
   Divider,
+  Snackbar,
 } from "@mui/material";
 import { CheckCircle, Cancel, Pending, SupervisorAccount, People, PersonAdd, Block } from "@mui/icons-material";
 import { getAccessRequests, updateAccessRequest, isAdmin, getCurrentUser } from "../utils/firebase";
@@ -46,6 +47,11 @@ const AdminPanel: React.FC = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [adminNotes, setAdminNotes] = useState("");
   const [actionType, setActionType] = useState<"approve" | "reject">("approve");
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: "success" | "error" }>({
+    open: false,
+    message: "",
+    severity: "success",
+  });
 
   const currentUser = getCurrentUser();
   const isUserAdmin = isAdmin(currentUser?.email || null);
@@ -59,8 +65,8 @@ const AdminPanel: React.FC = () => {
   const loadRequests = async () => {
     try {
       const result = await getAccessRequests();
-      if (result.success) {
-        setRequests(result.data);
+      if (result.success && result.data) {
+        setRequests(result.data as AccessRequest[]);
       }
     } catch (error) {
       console.error("요청 로드 실패:", error);
@@ -80,13 +86,36 @@ const AdminPanel: React.FC = () => {
     if (!selectedRequest) return;
 
     try {
-      await updateAccessRequest(selectedRequest.email, actionType, adminNotes);
-      await loadRequests(); // 목록 새로고침
-      setDialogOpen(false);
-      setSelectedRequest(null);
-      setAdminNotes("");
+      const status = actionType === "approve" ? "approved" : "rejected";
+      const result = await updateAccessRequest(selectedRequest.email, status, adminNotes);
+
+      if (result.success) {
+        await loadRequests(); // 목록 새로고침
+        setDialogOpen(false);
+        setSelectedRequest(null);
+        setAdminNotes("");
+
+        // 성공 메시지 표시
+        const message =
+          actionType === "approve"
+            ? `✅ ${selectedRequest.displayName ?? selectedRequest.email}님의 접근 권한을 승인했습니다! 🎉`
+            : `❌ ${selectedRequest.displayName ?? selectedRequest.email}님의 접근 권한을 거부했습니다.`;
+
+        setSnackbar({
+          open: true,
+          message,
+          severity: "success",
+        });
+      } else {
+        throw new Error(result.error?.toString() || "처리 중 오류가 발생했습니다.");
+      }
     } catch (error) {
       console.error("요청 처리 실패:", error);
+      setSnackbar({
+        open: true,
+        message: `처리 실패: ${error instanceof Error ? error.message : "알 수 없는 오류"}`,
+        severity: "error",
+      });
     }
   };
 
@@ -346,6 +375,22 @@ const AdminPanel: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* 성공/실패 알림 */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          sx={{ width: "100%" }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

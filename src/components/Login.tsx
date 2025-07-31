@@ -14,7 +14,7 @@ import {
   DialogContent,
   DialogActions,
 } from "@mui/material";
-import { Google, Send } from "@mui/icons-material";
+import { Google, Send, CloudSync } from "@mui/icons-material";
 import { signInWithGoogle, saveAccessRequest } from "../utils/firebase";
 import { User } from "firebase/auth";
 
@@ -28,31 +28,20 @@ const Login: React.FC = () => {
 
   const handleGoogleLogin = async () => {
     setLoading(true);
-    setError(null);
-    setSuccess(null);
+    setError("");
 
     try {
       const user = await signInWithGoogle();
-      // 이미 승인된 사용자라면 성공
-      setSuccess("로그인 성공!");
-    } catch (error: any) {
-      if (error.message.includes("승인되지 않은 사용자")) {
-        // 승인되지 않은 사용자인 경우 - 구글 로그인은 성공했지만 앱 접근 권한이 없음
-        // 여기서 사용자 정보를 가져와서 신청 다이얼로그를 열어야 함
-        try {
-          // Google 로그인을 다시 시도해서 사용자 정보만 가져오기
-          const { GoogleAuthProvider, signInWithPopup } = await import("firebase/auth");
-          const { auth } = await import("../config/firebase");
-          const provider = new GoogleAuthProvider();
-          const result = await signInWithPopup(auth, provider);
-          setPendingUser(result.user);
-          setRequestDialogOpen(true);
-        } catch (innerError) {
-          setError("로그인 중 오류가 발생했습니다.");
-        }
+      if (user) {
+        console.log("로그인 성공! App.tsx에서 권한 상태를 확인합니다. 🐧");
+        // App.tsx에서 자동으로 사용자 상태에 따른 화면을 보여줌
       } else {
-        setError(error.message || "로그인에 실패했습니다.");
+        // 사용자가 팝업을 닫은 경우
+        console.log("로그인이 취소되었습니다.");
       }
+    } catch (error: any) {
+      console.error("로그인 실패:", error);
+      setError(error.message || "로그인에 실패했습니다. 다시 시도해주세요. 🐧");
     } finally {
       setLoading(false);
     }
