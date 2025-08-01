@@ -414,9 +414,12 @@ const Pomodoro: React.FC = () => {
     return penguinGroup;
   };
 
-  // 궤적 업데이트 함수 (더 화려하게)
+  // 궤적 업데이트 함수 (더 화려하고 확실하게)
   const updateTrail = () => {
-    if (!trailGroupRef.current) return;
+    if (!trailGroupRef.current) {
+      console.log("❌ trailGroupRef가 없어요!");
+      return;
+    }
 
     // 기존 궤적 제거
     while (trailGroupRef.current.children.length > 0) {
@@ -424,27 +427,44 @@ const Pomodoro: React.FC = () => {
       trailGroupRef.current.remove(child);
     }
 
-    // 새로운 궤적 추가 (더 화려하게)
+    // 궤적이 있는지 확인
+    if (penguinTrail.length === 0) {
+      return;
+    }
+
+    console.log(`🎨 궤적 렌더링 중: ${penguinTrail.length}개 점`);
+
+    // 새로운 궤적 추가 (더 화려하고 확실하게)
     penguinTrail.forEach((point, index) => {
       const age = (Date.now() - point.time) / 1000; // 초 단위
-      const opacity = Math.max(0, 1 - age / 30); // 30초 동안 점점 사라짐
-      const scale = Math.max(0.3, 1 - age / 30); // 크기도 점점 작아짐
+      const opacity = Math.max(0.2, 1 - age / 30); // 최소 0.2 투명도 유지
+      const scale = Math.max(0.5, 1 - age / 30); // 최소 0.5 크기 유지
 
-      const trailGeometry = new THREE.SphereGeometry(0.08 * scale, 8, 8); // 더 큰 궤적
+      // 더 크고 밝은 궤적 점
+      const trailGeometry = new THREE.SphereGeometry(0.15 * scale, 12, 12); // 크기 2배 증가
       const trailMaterial = new THREE.MeshStandardMaterial({
-        color: 0x00bcd4, // 더 밝은 청록색
+        color: 0x00ffff, // 더 밝은 사이안 색상
         transparent: true,
         opacity: opacity,
-        emissive: 0x00bcd4,
-        emissiveIntensity: 0.4 * opacity, // 더 밝게 빛나도록
+        emissive: 0x00ffff, // 스스로 빛나도록
+        emissiveIntensity: 0.6 * opacity, // 더 강한 발광
+        metalness: 0.1,
+        roughness: 0.1,
       });
 
       const trailPoint = new THREE.Mesh(trailGeometry, trailMaterial);
-      trailPoint.position.set(point.x, 0.1, point.z); // 살짝 높게
+      trailPoint.position.set(point.x, 0.2, point.z); // 더 높게 배치
+
+      // 궤적 점이 약간 반짝이도록
+      const sparkleTime = Date.now() * 0.005;
+      trailPoint.scale.setScalar(1 + Math.sin(sparkleTime + index) * 0.2);
+
       if (trailGroupRef.current) {
         trailGroupRef.current.add(trailPoint);
       }
     });
+
+    console.log(`✨ 궤적 렌더링 완료: ${trailGroupRef.current.children.length}개 점 표시됨`);
   };
 
   const animate = () => {
@@ -510,21 +530,22 @@ const Pomodoro: React.FC = () => {
       // 총 높이 (항상 움직임)
       penguinRef.current.position.y = walkBounce + jumpHeight + 0.1;
 
-      // 이동 방향으로 회전 (더 자연스럽게)
-      const lookAheadAngle = angle + 0.3;
-      penguinRef.current.lookAt(
-        Math.cos(lookAheadAngle) * radius,
-        penguinRef.current.position.y,
-        Math.sin(lookAheadAngle) * radius
-      );
+      // 🔧 펭귄 방향 수정 - lookAt 대신 수동 회전으로 왜곡 방지
+      // 이동 방향 계산 (90도 앞선 방향)
+      const directionAngle = angle + Math.PI / 2; // 90도 앞선 방향
+      penguinRef.current.rotation.y = directionAngle;
 
-      // 걷기 애니메이션 (항상 활성화)
-      penguinRef.current.rotation.z = Math.sin(animTime) * 0.3;
+      // 걷기 애니메이션 (항상 활성화) - 왜곡 방지를 위해 y축 회전은 건드리지 않음
+      const walkTilt = Math.sin(animTime) * 0.3;
+      penguinRef.current.rotation.z = walkTilt;
 
-      // 점프할 때 특별한 효과
+      // 점프할 때 특별한 효과 - x축 회전만 사용
       if (jumpHeight > 0.5) {
         penguinRef.current.rotation.z = Math.sin(animTime * 3) * 0.6;
-        penguinRef.current.rotation.x = -0.4;
+        penguinRef.current.rotation.x = -0.4; // 앞으로 기울임
+      } else {
+        // 점프하지 않을 때는 x축 회전 초기화
+        penguinRef.current.rotation.x = THREE.MathUtils.lerp(penguinRef.current.rotation.x, 0, 0.1);
       }
 
       // 궤적 업데이트
