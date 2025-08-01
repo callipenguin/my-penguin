@@ -133,15 +133,15 @@ const Pomodoro: React.FC = () => {
         return;
       }
 
-      console.log("🚀 궤적 시스템 시작! 펭귄 위치:", penguinRef.current.position);
+      console.log("🎣 물고기 던지기 시스템 시작! 펭귄 위치:", penguinRef.current.position);
 
-      // 궤적 생성 (5초마다 토글 방식)
+      // 물고기 던지기 시스템 (5초마다)
       const interval = setInterval(() => {
         if (penguinRef.current && sceneRef.current) {
-          // 🎯 시작 버튼 누른 후에만 궤적 시스템 작동!
+          // 🎯 시작 버튼 누른 후에만 물고기 던지기!
           const currentIsActive = isActiveRef.current;
           if (!currentIsActive) {
-            console.log("⏸️ 타이머 정지 중 - 궤적 생성 안함");
+            console.log("⏸️ 타이머 정지 중 - 물고기 던지기 안함");
             return;
           }
 
@@ -153,40 +153,40 @@ const Pomodoro: React.FC = () => {
             return;
           }
 
-          // 🐟 토글 방식: 같은 위치에 궤적이 있으면 제거, 없으면 추가
+          // 🐟 펭귄이 물고기를 밟고 있는지 체크 (1.0 반경 내)
           const currentTrails = penguinTrailRef.current;
-          const nearbyThreshold = 1.0; // 1.0 반경 내 궤적 체크
+          const stompThreshold = 1.0; // 밟기 감지 범위
 
-          const nearbyTrailIndex = currentTrails.findIndex((trail) => {
+          const stompedFishIndex = currentTrails.findIndex((trail) => {
             const distance = Math.sqrt(Math.pow(trail.x - currentPos.x, 2) + Math.pow(trail.z - currentPos.z, 2));
-            return distance < nearbyThreshold;
+            return distance < stompThreshold;
           });
 
-          if (nearbyTrailIndex !== -1) {
-            // 🗑️ 근처에 궤적이 있으면 제거
-            console.log("🗑️ 근처 궤적 제거:", {
-              제거위치: {
-                x: currentTrails[nearbyTrailIndex].x.toFixed(2),
-                z: currentTrails[nearbyTrailIndex].z.toFixed(2),
+          if (stompedFishIndex !== -1) {
+            // 🦶 펭귄이 물고기를 밟았다! 물고기 사라짐
+            console.log("🦶 펭귄이 물고기를 밟았어요!", {
+              밟힌물고기위치: {
+                x: currentTrails[stompedFishIndex].x.toFixed(2),
+                z: currentTrails[stompedFishIndex].z.toFixed(2),
               },
               펭귄위치: { x: currentPos.x.toFixed(2), z: currentPos.z.toFixed(2) },
             });
 
             setPenguinTrail((prev) => {
-              const updated = prev.filter((_, index) => index !== nearbyTrailIndex);
+              const updated = prev.filter((_, index) => index !== stompedFishIndex);
               penguinTrailRef.current = updated;
               return updated;
             });
           } else {
-            // ✨ 근처에 궤적이 없으면 물고기 추가
-            const newFishPoint = {
+            // 🎣 펭귄이 새로운 물고기를 던집니다!
+            const newFish = {
               x: currentPos.x,
               y: currentPos.y,
               z: currentPos.z,
               time: Date.now(),
             };
 
-            console.log("🐟 새로운 물고기 추가:", {
+            console.log("🎣 펭귄이 물고기를 던졌어요!", {
               위치: {
                 x: currentPos.x.toFixed(2),
                 y: currentPos.y.toFixed(2),
@@ -196,7 +196,7 @@ const Pomodoro: React.FC = () => {
             });
 
             setPenguinTrail((prev) => {
-              const updated = [...prev, newFishPoint];
+              const updated = [...prev, newFish];
               // 오래된 물고기 제거 (60초 이상)
               const cutoffTime = Date.now() - 60000;
               const filtered = updated.filter((point) => point.time > cutoffTime);
@@ -209,7 +209,7 @@ const Pomodoro: React.FC = () => {
       }, 5000); // 5초마다 실행
 
       return () => {
-        console.log("🛑 궤적 시스템 정리");
+        console.log("🛑 물고기 던지기 시스템 정리");
         clearInterval(interval);
       };
     };
@@ -316,10 +316,10 @@ const Pomodoro: React.FC = () => {
     const width = mountRef.current.clientWidth;
     const height = Math.min(400, width * 0.6);
 
-    // 카메라 생성 (더 높고 멀리에서 전체 뷰)
+    // 카메라 생성 (가까이서 잘 보이도록!)
     const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
-    camera.position.set(5, 10, 15); // 더 높고 멀리서 보도록 조정
-    camera.lookAt(0, 2, 0); // 조금 더 위쪽을 보도록
+    camera.position.set(2, 4, 8); // 더 가깝게! (5,10,15) → (2,4,8)
+    camera.lookAt(0, 1, 0); // 펭귄과 물고기가 잘 보이는 높이
     cameraRef.current = camera;
 
     // 렌더러 생성 (동적 크기)
@@ -383,27 +383,6 @@ const Pomodoro: React.FC = () => {
     penguin.position.set(6, 0, 0); // 원 가장자리에서 시작
     penguinRef.current = penguin;
     scene.add(penguin);
-
-    // 🧪 테스트용 고정 빨간 구체 (렌더링 테스트)
-    const testGeometry = new THREE.SphereGeometry(0.5, 16, 16);
-    const testMaterial = new THREE.MeshBasicMaterial({
-      color: 0xff0000,
-      transparent: false,
-    });
-    const testSphere = new THREE.Mesh(testGeometry, testMaterial);
-    testSphere.position.set(4, 2, 2); // 펭귄 근처 높은 곳
-    scene.add(testSphere);
-    console.log("🧪 테스트 구체 추가됨! 위치:", testSphere.position);
-
-    // 🧪 테스트용 두 번째 구체 (다른 위치)
-    const testGeometry2 = new THREE.SphereGeometry(0.3, 16, 16);
-    const testMaterial2 = new THREE.MeshBasicMaterial({
-      color: 0x00ff00, // 초록색
-    });
-    const testSphere2 = new THREE.Mesh(testGeometry2, testMaterial2);
-    testSphere2.position.set(-4, 1, -2); // 반대편
-    scene.add(testSphere2);
-    console.log("🧪 테스트 구체2 추가됨! 위치:", testSphere2.position);
 
     console.log("🐧 Three.js 초기화 완료! 펭귄 위치:", penguin.position);
 
@@ -592,21 +571,20 @@ const Pomodoro: React.FC = () => {
       rightEye.position.set(0.08 * scale, -0.06 * scale, 0.1 * scale);
       fishGroup.add(rightEye);
 
-      // 물고기 위치 설정 (펭귄보다 조금 높게)
-      fishGroup.position.set(point.x, 0.3 + index * 0.05, point.z);
+      // 물고기 위치 설정 (펭귄과 비슷한 높이로!)
+      fishGroup.position.set(point.x, 0.2 + index * 0.03, point.z); // 더 낮게 조정
 
       // 물고기가 약간 헤엄치는 듯한 효과
       const swimTime = Date.now() * 0.003;
-      fishGroup.rotation.y = Math.sin(swimTime + index) * 0.3; // 좌우 움직임
-      fishGroup.position.y += Math.sin(swimTime * 2 + index) * 0.1; // 상하 움직임
+      fishGroup.rotation.y = Math.sin(swimTime + index) * 0.2; // 좌우 움직임 줄임
+      fishGroup.position.y += Math.sin(swimTime * 2 + index) * 0.05; // 상하 움직임 줄임
 
       if (trailGroupRef.current) {
         trailGroupRef.current.add(fishGroup);
 
-        // 🔍 물고기 위치 디버깅
-        console.log(`🐟 물고기 ${index} 생성:`, {
-          원래위치: { x: point.x.toFixed(2), y: point.y.toFixed(2), z: point.z.toFixed(2) },
-          실제위치: {
+        // �� 물고기 위치 디버깅
+        console.log(`�� 물고기 ${index} 헤엄치는 중:`, {
+          위치: {
             x: fishGroup.position.x.toFixed(2),
             y: fishGroup.position.y.toFixed(2),
             z: fishGroup.position.z.toFixed(2),
@@ -774,10 +752,10 @@ const Pomodoro: React.FC = () => {
     setTime(isBreak ? 5 * 60 : 25 * 60);
     setPenguinProgress(0);
     setSessionStartTime(null);
-    setPenguinTrail([]); // 궤적도 초기화
+    setPenguinTrail([]); // 물고기도 초기화
     penguinTrailRef.current = []; // ref도 초기화
 
-    console.log("🔄 resetTimer 완료! 모든 상태 초기화!");
+    console.log("🔄 resetTimer 완료! 모든 상태 + 물고기 초기화!");
   };
 
   const handleTimerComplete = async () => {
@@ -1013,7 +991,7 @@ const Pomodoro: React.FC = () => {
             </Typography>
 
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              궤적 포인트: {penguinTrail.length}개 ✨
+              헤엄치는 물고기: {penguinTrail.length}마리 🐟
             </Typography>
           </CardContent>
         </Card>
@@ -1105,15 +1083,15 @@ const Pomodoro: React.FC = () => {
               <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", mt: 2 }}>
                 {isActive ? (
                   <>
-                    🚀 펭귄이 빠르게 빙하를 돌며 집중 중이에요! <br />
-                    ✨ 밝은 사이안 궤적이 1초마다 생성되고 있어요! <br />⏰ {Math.floor(time / 60)}분 {time % 60}초
+                    🎣 펭귄이 5초마다 물고기를 던지고 있어요! <br />
+                    🐟 물고기들이 빙하 위를 헤엄치며 집중을 도와줘요! <br />⏰ {Math.floor(time / 60)}분 {time % 60}초
                     남았어요!
                   </>
                 ) : (
                   <>
                     🐧 펭귄이 천천히 빙하를 돌며 대기 중이에요! <br />
-                    ▶️ 타이머 시작하면 빠르게 돌며 청록색 궤적을 남겨요! <br />✨ 궤적은 1초마다 생성되고 30초 후
-                    자연스럽게 사라져요!
+                    ▶️ 타이머 시작하면 5초마다 물고기를 던져요! <br />
+                    🦶 펭귄이 물고기를 밟으면 물고기가 사라져요!
                   </>
                 )}
               </Typography>
