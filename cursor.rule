@@ -112,6 +112,58 @@ accessRequests/        # 사용자 승인 요청
 - **애니메이션**: requestAnimationFrame 사용
 - **메모리**: Geometry/Material 적절한 dispose
 
+### React + Three.js 동기화 패턴 (고급)
+```typescript
+// ✅ useRef로 최신 상태 참조
+const isActiveRef = useRef(false);
+const dataRef = useRef<SomeData[]>([]);
+
+useEffect(() => {
+  isActiveRef.current = isActive; // 상태 동기화
+}, [isActive]);
+
+const animate = () => {
+  // requestAnimationFrame 내에서 최신 상태 접근
+  const currentActive = isActiveRef.current;
+  if (currentActive) {
+    // 애니메이션 로직
+  }
+  requestAnimationFrame(animate);
+};
+
+// ✅ 복합 오브젝트 그룹 관리
+const createFishGroup = () => {
+  const fishGroup = new THREE.Group();
+  
+  // 몸체, 꼬리, 눈 각각 생성
+  const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+  const tail = new THREE.Mesh(tailGeometry, tailMaterial);
+  const eye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+  
+  fishGroup.add(body, tail, eye);
+  return fishGroup;
+};
+
+// ✅ 토글 시스템 구현
+const toggleObjectAtPosition = (targetPos) => {
+  const existing = objects.findIndex(obj => 
+    distance(obj.position, targetPos) < threshold
+  );
+  
+  if (existing !== -1) {
+    // 제거
+    scene.remove(objects[existing]);
+    objects.splice(existing, 1);
+  } else {
+    // 추가
+    const newObj = createObject();
+    newObj.position.copy(targetPos);
+    scene.add(newObj);
+    objects.push(newObj);
+  }
+};
+```
+
 ## 📝 코딩 컨벤션
 
 ### TypeScript 규칙
@@ -210,25 +262,32 @@ console.log("State:", projects);
 
 ## 📚 다음 대화를 위한 컨텍스트
 
-### 현재 진행 상황 (2024.08.01)
-- ✅ 할일 연동 문제 해결 완료
-- ✅ UI/UX 개선 (배너 심플화, 펭귄 레이아웃 최적화) 완료  
-- ✅ 뽀모도로 펭귄 애니메이션 개선 완료
-- ✅ 개발 로그 & 규칙 업데이트 완료
+### 현재 진행 상황 (2024.12.19)
+- ✅ 뽀모도로 3D 펭귄 애니메이션 동기화 문제 완전 해결
+- ✅ 물고기 궤적 시스템 완전 구현 (토글 방식 + 헤엄치는 애니메이션)
+- ✅ Three.js 렌더링 최적화 및 디버깅 시스템 구축
+- ✅ React useRef 기반 상태 동기화 시스템 완성
+- ✅ UI/UX 동적 개선 (조건부 텍스트, 상태별 안내)
+
+### 기술적 성과 (새로 추가)
+- **React + Three.js 동기화**: useRef로 애니메이션 루프와 React 상태 완전 동기화
+- **복합 3D 오브젝트**: Group을 활용한 물고기 모델 (몸체+꼬리+눈) 렌더링
+- **토글 애니메이션 시스템**: 위치 기반 동적 오브젝트 생성/제거 로직
+- **Three.js 디버깅**: 실시간 오브젝트 상태 추적 및 렌더링 검증 시스템
 
 ### 다음 작업 후보
 - [ ] projectTodos Firebase 동기화 구현
-- [ ] 주차 선택기 UI 추가 (Analytics)
-- [ ] 펭귄 애니메이션 세부 조정
-- [ ] 모바일 UX 추가 개선
-- [ ] 성능 최적화 (Bundle 크기, 렌더링)
+- [ ] 주차 선택기 UI 추가 (Analytics)  
+- [ ] 테스트용 고정 구체 제거 (프로덕션 정리)
+- [ ] 물고기 모델 세부 조정 (색상, 크기, 애니메이션)
+- [ ] 성능 최적화 (Three.js 메모리 관리)
 
-### 주의사항
-- 뽀모도로에서는 `project.tasks` 대신 `projectTodos` 사용
-- Three.js 컴포넌트 언마운트시 반드시 정리 필요
-- Firebase 호출시 항상 fallback 패턴 적용
-- 모든 새 기능은 빙하/펭귄 테마 유지
-- 사용자 피드백: "복잡함보다 심플함 선호"
+### 새로운 주의사항
+- **Three.js + React**: 항상 useRef로 최신 상태 참조, setState의 비동기성 고려
+- **복합 오브젝트 정리**: Group 내부 Mesh들도 개별적으로 dispose 필요
+- **애니메이션 최적화**: requestAnimationFrame 내에서 과도한 로그 방지
+- **디버깅 시스템**: 개발 중에는 상세 로그, 프로덕션에서는 최소화
+- **물고기 테마 확장**: 빙하 생태계 완성으로 일관성 있는 UX 제공
 
 ---
 🐧 *펭귄과 함께하는 생산적인 개발을 위해! 화이팅!* ❄️ 

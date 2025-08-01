@@ -135,20 +135,15 @@ const Pomodoro: React.FC = () => {
 
       console.log("🚀 궤적 시스템 시작! 펭귄 위치:", penguinRef.current.position);
 
-      // 궤적 생성 (REF 기반으로 최신 상태 참조)
+      // 궤적 생성 (5초마다 토글 방식)
       const interval = setInterval(() => {
         if (penguinRef.current && sceneRef.current) {
-          // 🔧 ref로 최신 상태 참조!
+          // 🎯 시작 버튼 누른 후에만 궤적 시스템 작동!
           const currentIsActive = isActiveRef.current;
-
-          // 🔧 해결책: 항상 궤적 생성하되 빈도 조절!
-          const trailInterval = currentIsActive ? 1000 : 3000; // 활성화: 1초마다, 비활성화: 3초마다
-
-          console.log("✨ 궤적 생성 상태:", {
-            isActive: currentIsActive,
-            interval: currentIsActive ? "1초" : "3초",
-            currentTrailCount: penguinTrailRef.current.length,
-          });
+          if (!currentIsActive) {
+            console.log("⏸️ 타이머 정지 중 - 궤적 생성 안함");
+            return;
+          }
 
           const currentPos = penguinRef.current.position;
 
@@ -158,50 +153,60 @@ const Pomodoro: React.FC = () => {
             return;
           }
 
-          const newTrailPoint = {
-            x: currentPos.x,
-            y: currentPos.y,
-            z: currentPos.z,
-            time: Date.now(),
-          };
+          // 🐟 토글 방식: 같은 위치에 궤적이 있으면 제거, 없으면 추가
+          const currentTrails = penguinTrailRef.current;
+          const nearbyThreshold = 1.0; // 1.0 반경 내 궤적 체크
 
-          console.log("✨ 새로운 궤적 추가 (REF):", {
-            position: {
-              x: currentPos.x.toFixed(2),
-              y: currentPos.y.toFixed(2),
-              z: currentPos.z.toFixed(2),
-            },
-            isActive: currentIsActive,
-            currentTrailCount: penguinTrailRef.current.length,
-            펭귄높이: currentPos.y.toFixed(2),
-            궤적예상높이: (1.0).toFixed(2),
+          const nearbyTrailIndex = currentTrails.findIndex((trail) => {
+            const distance = Math.sqrt(Math.pow(trail.x - currentPos.x, 2) + Math.pow(trail.z - currentPos.z, 2));
+            return distance < nearbyThreshold;
           });
 
-          setPenguinTrail((prev) => {
-            const updated = [...prev, newTrailPoint];
-            // 오래된 궤적 제거 (30초 이상)
-            const cutoffTime = Date.now() - 30000;
-            const filtered = updated.filter((point) => point.time > cutoffTime);
-
-            if (filtered.length !== updated.length) {
-              console.log("🗑️ 오래된 궤적 제거:", updated.length - filtered.length, "개");
-            }
-
-            console.log("📊 궤적 상태 업데이트 (REF):", {
-              이전: prev.length,
-              추가후: updated.length,
-              정리후: filtered.length,
+          if (nearbyTrailIndex !== -1) {
+            // 🗑️ 근처에 궤적이 있으면 제거
+            console.log("🗑️ 근처 궤적 제거:", {
+              제거위치: {
+                x: currentTrails[nearbyTrailIndex].x.toFixed(2),
+                z: currentTrails[nearbyTrailIndex].z.toFixed(2),
+              },
+              펭귄위치: { x: currentPos.x.toFixed(2), z: currentPos.z.toFixed(2) },
             });
 
-            // 🔧 ref도 동시에 업데이트!
-            penguinTrailRef.current = filtered;
+            setPenguinTrail((prev) => {
+              const updated = prev.filter((_, index) => index !== nearbyTrailIndex);
+              penguinTrailRef.current = updated;
+              return updated;
+            });
+          } else {
+            // ✨ 근처에 궤적이 없으면 물고기 추가
+            const newFishPoint = {
+              x: currentPos.x,
+              y: currentPos.y,
+              z: currentPos.z,
+              time: Date.now(),
+            };
 
-            return filtered;
-          });
-        } else {
-          console.log("❌ 펭귄 ref가 없어요! penguinRef:", !!penguinRef.current, "sceneRef:", !!sceneRef.current);
+            console.log("🐟 새로운 물고기 추가:", {
+              위치: {
+                x: currentPos.x.toFixed(2),
+                y: currentPos.y.toFixed(2),
+                z: currentPos.z.toFixed(2),
+              },
+              현재물고기수: penguinTrailRef.current.length,
+            });
+
+            setPenguinTrail((prev) => {
+              const updated = [...prev, newFishPoint];
+              // 오래된 물고기 제거 (60초 이상)
+              const cutoffTime = Date.now() - 60000;
+              const filtered = updated.filter((point) => point.time > cutoffTime);
+
+              penguinTrailRef.current = filtered;
+              return filtered;
+            });
+          }
         }
-      }, 1000); // 1초마다 궤적 생성 (고정)
+      }, 5000); // 5초마다 실행
 
       return () => {
         console.log("🛑 궤적 시스템 정리");
@@ -514,7 +519,7 @@ const Pomodoro: React.FC = () => {
     return penguinGroup;
   };
 
-  // 궤적 업데이트 함수 (가시성 최대한 강화!)
+  // 궤적 업데이트 함수 (물고기 모양으로!)
   const updateTrail = () => {
     if (!trailGroupRef.current) {
       console.log("❌ trailGroupRef가 없어요!");
@@ -532,66 +537,88 @@ const Pomodoro: React.FC = () => {
       return;
     }
 
-    console.log(`🎨 궤적 렌더링 중: ${penguinTrailRef.current.length}개 점`);
+    console.log(`🐟 물고기 렌더링 중: ${penguinTrailRef.current.length}개 마리`);
 
-    // 새로운 궤적 추가 (가시성 최대 강화!)
+    // 새로운 물고기 추가!
     penguinTrailRef.current.forEach((point, index) => {
       const age = (Date.now() - point.time) / 1000; // 초 단위
-      const opacity = Math.max(0.4, 1 - age / 30); // 최소 0.4 투명도 (더 진하게)
-      const scale = Math.max(0.7, 1 - age / 30); // 최소 0.7 크기 (더 크게)
+      const opacity = Math.max(0.6, 1 - age / 60); // 60초 동안 서서히 사라짐
+      const scale = Math.max(0.8, 1 - age / 60); // 크기도 점점 작아짐
 
-      // 📈 궤적 크기 4배 증가! (확실히 보이게)
-      const trailGeometry = new THREE.SphereGeometry(0.4 * scale, 16, 16); // 0.25 → 0.4 (더욱 크게!)
-      const trailMaterial = new THREE.MeshStandardMaterial({
-        color: 0xff0000, // 빨간색 궤적
+      // 🐟 물고기 그룹 생성
+      const fishGroup = new THREE.Group();
+
+      // 물고기 몸체 (타원형)
+      const bodyGeometry = new THREE.SphereGeometry(0.15 * scale, 12, 8);
+      bodyGeometry.scale(1.5, 1, 1); // 가로로 늘려서 물고기 몸 모양
+      const bodyMaterial = new THREE.MeshStandardMaterial({
+        color: 0xff8c00, // 주황색 물고기
         transparent: true,
         opacity: opacity,
-        emissive: 0xff0000, // 스스로 빛나게
-        emissiveIntensity: 0.8 * opacity, // 더 강한 발광 (0.6 → 0.8)
-        metalness: 0.0, // 메탈 제거로 더 밝게
-        roughness: 0.0, // 러프니스 제거로 매끈하게
+        emissive: 0xff8c00,
+        emissiveIntensity: 0.3 * opacity,
+        metalness: 0.1,
+        roughness: 0.3,
       });
+      const fishBody = new THREE.Mesh(bodyGeometry, bodyMaterial);
+      fishGroup.add(fishBody);
 
-      const trailPoint = new THREE.Mesh(trailGeometry, trailMaterial);
-
-      // 🚀 높이 조정! (펭귄과 비슷한 높이로)
-      trailPoint.position.set(point.x, 0.5 + index * 0.1, point.z); // 1.0 → 0.5 (펭귄 근처)
-
-      // 궤적 점이 크게 반짝이도록
-      const sparkleTime = Date.now() * 0.008; // 더 빠른 반짝임
-      const sparkleScale = 1 + Math.sin(sparkleTime + index) * 0.4; // 더 큰 반짝임
-      trailPoint.scale.setScalar(sparkleScale);
-
-      // 🔥 추가 발광 효과 - 작은 후광 추가
-      const glowGeometry = new THREE.SphereGeometry(0.35 * scale, 8, 8);
-      const glowMaterial = new THREE.MeshBasicMaterial({
-        color: 0xff0000, // 빨간색 후광
+      // 물고기 꼬리 (삼각형)
+      const tailGeometry = new THREE.ConeGeometry(0.08 * scale, 0.2 * scale, 3);
+      const tailMaterial = new THREE.MeshStandardMaterial({
+        color: 0xff6600, // 더 진한 주황색
         transparent: true,
-        opacity: opacity * 0.3, // 반투명 후광
+        opacity: opacity,
+        emissive: 0xff6600,
+        emissiveIntensity: 0.2 * opacity,
       });
-      const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
-      glowMesh.position.copy(trailPoint.position);
+      const fishTail = new THREE.Mesh(tailGeometry, tailMaterial);
+      fishTail.position.x = -0.2 * scale; // 몸체 뒤쪽
+      fishTail.rotation.z = Math.PI / 2; // 90도 회전
+      fishGroup.add(fishTail);
+
+      // 물고기 눈 (작은 흰색 점)
+      const eyeGeometry = new THREE.SphereGeometry(0.03 * scale, 8, 8);
+      const eyeMaterial = new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: opacity,
+      });
+      const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+      leftEye.position.set(0.08 * scale, 0.06 * scale, 0.1 * scale);
+      fishGroup.add(leftEye);
+
+      const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+      rightEye.position.set(0.08 * scale, -0.06 * scale, 0.1 * scale);
+      fishGroup.add(rightEye);
+
+      // 물고기 위치 설정 (펭귄보다 조금 높게)
+      fishGroup.position.set(point.x, 0.3 + index * 0.05, point.z);
+
+      // 물고기가 약간 헤엄치는 듯한 효과
+      const swimTime = Date.now() * 0.003;
+      fishGroup.rotation.y = Math.sin(swimTime + index) * 0.3; // 좌우 움직임
+      fishGroup.position.y += Math.sin(swimTime * 2 + index) * 0.1; // 상하 움직임
 
       if (trailGroupRef.current) {
-        trailGroupRef.current.add(trailPoint);
-        trailGroupRef.current.add(glowMesh); // 후광도 추가
+        trailGroupRef.current.add(fishGroup);
 
-        // 🔍 궤적 위치 디버깅
-        console.log(`🎯 궤적 ${index} 생성:`, {
+        // 🔍 물고기 위치 디버깅
+        console.log(`🐟 물고기 ${index} 생성:`, {
           원래위치: { x: point.x.toFixed(2), y: point.y.toFixed(2), z: point.z.toFixed(2) },
           실제위치: {
-            x: trailPoint.position.x.toFixed(2),
-            y: trailPoint.position.y.toFixed(2),
-            z: trailPoint.position.z.toFixed(2),
+            x: fishGroup.position.x.toFixed(2),
+            y: fishGroup.position.y.toFixed(2),
+            z: fishGroup.position.z.toFixed(2),
           },
-          크기: (0.4 * scale).toFixed(2),
+          크기: scale.toFixed(2),
           투명도: opacity.toFixed(2),
-          카메라위치: "5,10,15",
+          나이: age.toFixed(1) + "초",
         });
       }
     });
 
-    console.log(`✨ 궤적 렌더링 완료: ${trailGroupRef.current.children.length}개 오브젝트 표시됨 (점 + 후광)`);
+    console.log(`✨ 물고기 렌더링 완료: ${trailGroupRef.current.children.length}개 마리 헤엄치는 중!`);
 
     // 🔍 트레일 그룹 상세 디버깅
     console.log("🔍 TrailGroup 상태:", {
@@ -600,18 +627,6 @@ const Pomodoro: React.FC = () => {
       씬에포함됨: sceneRef.current?.children.includes(trailGroupRef.current!) || false,
       전체씬자식수: sceneRef.current?.children.length || 0,
     });
-
-    // 각 자식 오브젝트 상태 확인
-    if (trailGroupRef.current && trailGroupRef.current.children.length > 0) {
-      trailGroupRef.current.children.forEach((child, index) => {
-        console.log(`🎯 TrailGroup 자식 ${index}:`, {
-          타입: child.type,
-          위치: `(${child.position.x.toFixed(2)}, ${child.position.y.toFixed(2)}, ${child.position.z.toFixed(2)})`,
-          보임: child.visible,
-          불투명도: (child as any).material?.opacity || "N/A",
-        });
-      });
-    }
   };
 
   const animate = () => {
