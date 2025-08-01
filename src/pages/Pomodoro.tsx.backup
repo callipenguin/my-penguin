@@ -38,7 +38,6 @@ const Pomodoro: React.FC = () => {
   const cameraRef = useRef<THREE.PerspectiveCamera>();
   const penguinRef = useRef<THREE.Group>();
   const animationIdRef = useRef<number>();
-  const trailGroupRef = useRef<THREE.Group>(); // 궤적을 위한 그룹
 
   // 뽀모도로 상태
   const [isActive, setIsActive] = useState(false);
@@ -55,6 +54,7 @@ const Pomodoro: React.FC = () => {
 
   // 궤적 관련 상태
   const [penguinTrail, setPenguinTrail] = useState<Array<{ x: number; y: number; z: number; time: number }>>([]);
+  const [canvasSize, setCanvasSize] = useState({ width: 600, height: 300 });
 
   // 현재 세션 추적을 위한 상태
   const [sessionStartTime, setSessionStartTime] = useState<string | null>(null);
@@ -81,51 +81,13 @@ const Pomodoro: React.FC = () => {
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
-    // 리사이즈 이벤트 리스너
-    const handleResize = () => {
-      if (rendererRef.current && cameraRef.current && mountRef.current) {
-        const width = mountRef.current.clientWidth;
-        const height = Math.min(400, width * 0.6); // 적절한 비율로 높이 설정
-        rendererRef.current.setSize(width, height);
-        cameraRef.current.aspect = width / height;
-        cameraRef.current.updateProjectionMatrix();
-      }
-    };
-
-    window.addEventListener("resize", handleResize);
-
     return () => {
       if (animationIdRef.current) {
         cancelAnimationFrame(animationIdRef.current);
       }
       document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("resize", handleResize);
     };
   }, []);
-
-  // 궤적 업데이트 (1초마다)
-  useEffect(() => {
-    if (isActive && penguinRef.current) {
-      const interval = setInterval(() => {
-        const currentPos = penguinRef.current!.position;
-        const newTrailPoint = {
-          x: currentPos.x,
-          y: currentPos.y,
-          z: currentPos.z,
-          time: Date.now(),
-        };
-
-        setPenguinTrail((prev) => {
-          const updated = [...prev, newTrailPoint];
-          // 오래된 궤적 제거 (30초 이상)
-          const cutoffTime = Date.now() - 30000;
-          return updated.filter((point) => point.time > cutoffTime);
-        });
-      }, 1000);
-
-      return () => clearInterval(interval);
-    }
-  }, [isActive]);
 
   // 타이머 효과
   useEffect(() => {
@@ -203,19 +165,15 @@ const Pomodoro: React.FC = () => {
     scene.background = new THREE.Color(0xf0f8ff);
     sceneRef.current = scene;
 
-    // 동적 크기 계산
-    const width = mountRef.current.clientWidth;
-    const height = Math.min(400, width * 0.6);
-
     // 카메라 생성 (더 넓은 시야각으로)
-    const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
-    camera.position.set(0, 8, 15); // 더 높이, 뒤로
-    camera.lookAt(0, 0, 0);
+    const camera = new THREE.PerspectiveCamera(75, 400 / 200, 0.1, 1000);
+    camera.position.set(0, 4, 12); // 좀 더 높이, 뒤로
+    camera.lookAt(0, 1, 0);
     cameraRef.current = camera;
 
-    // 렌더러 생성 (동적 크기)
+    // 렌더러 생성
     const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(width, height);
+    renderer.setSize(400, 200);
     renderer.shadowMap.enabled = true;
     rendererRef.current = renderer;
     mountRef.current.appendChild(renderer.domElement);
@@ -225,39 +183,54 @@ const Pomodoro: React.FC = () => {
     scene.add(ambientLight);
 
     const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
-    directionalLight.position.set(5, 8, 5);
+    directionalLight.position.set(5, 5, 5);
     directionalLight.castShadow = true;
     scene.add(directionalLight);
 
-    // 원형 빙하 플랫폼 생성
-    const iceGeometry = new THREE.CylinderGeometry(8, 8, 0.5, 32);
-    const iceMaterial = new THREE.MeshStandardMaterial({
+    // 바닥 (빙하) - 더 길게!
+    const groundGeometry = new THREE.PlaneGeometry(40, 8); // 20 → 40으로 더 길게
+    const groundMaterial = new THREE.MeshStandardMaterial({
       color: 0xe6f3ff,
-      roughness: 0.3,
-      metalness: 0.1,
-      transparent: true,
-      opacity: 0.9,
+      roughness: 0.8,
     });
-    const icePlatform = new THREE.Mesh(iceGeometry, iceMaterial);
-    icePlatform.position.y = -0.25;
-    icePlatform.receiveShadow = true;
-    scene.add(icePlatform);
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    scene.add(ground);
 
-    // 시작점 표시
-    const startGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.1, 16);
+    // 시작점 (더 멀리)
+    const startGeometry = new THREE.CylinderGeometry(0.4, 0.4, 0.15, 16);
     const startMaterial = new THREE.MeshStandardMaterial({ color: 0x4caf50 });
     const start = new THREE.Mesh(startGeometry, startMaterial);
-    start.position.set(6, 0.1, 0);
+    start.position.set(-18, 0.08, 0); // -8 → -18로 더 멀리
     scene.add(start);
 
-    // 궤적 그룹 생성
-    const trailGroup = new THREE.Group();
-    trailGroupRef.current = trailGroup;
-    scene.add(trailGroup);
+    // 도착점 (더 멀리)
+    const finishGeometry = new THREE.CylinderGeometry(0.4, 0.4, 0.15, 16);
+    const finishMaterial = new THREE.MeshStandardMaterial({ color: 0xf44336 });
+    const finish = new THREE.Mesh(finishGeometry, finishMaterial);
+    finish.position.set(18, 0.08, 0); // 8 → 18로 더 멀리
+    scene.add(finish);
+
+    // 중간 지점 표시들 (진행상황을 더 잘 보이게)
+    for (let i = -15; i <= 15; i += 6) {
+      if (i !== -18 && i !== 18) {
+        // 시작점, 도착점 제외
+        const markerGeometry = new THREE.CylinderGeometry(0.15, 0.15, 0.05, 8);
+        const markerMaterial = new THREE.MeshStandardMaterial({
+          color: 0x81c784,
+          transparent: true,
+          opacity: 0.7,
+        });
+        const marker = new THREE.Mesh(markerGeometry, markerMaterial);
+        marker.position.set(i, 0.03, 0);
+        scene.add(marker);
+      }
+    }
 
     // 펭귄 생성
     const penguin = createPenguin();
-    penguin.position.set(6, 0, 0); // 원 가장자리에서 시작
+    penguin.position.set(-18, 0, 0); // 새로운 시작점
     penguinRef.current = penguin;
     scene.add(penguin);
 
@@ -305,7 +278,7 @@ const Pomodoro: React.FC = () => {
     head.castShadow = true;
     penguinGroup.add(head);
 
-    // 부리
+    // 부리 (더 귀여운 크기)
     const beakGeometry = new THREE.ConeGeometry(0.04, 0.1, 8);
     const beakMaterial = new THREE.MeshStandardMaterial({
       color: 0xff8c00,
@@ -317,7 +290,7 @@ const Pomodoro: React.FC = () => {
     beak.rotation.x = Math.PI / 2;
     penguinGroup.add(beak);
 
-    // 눈
+    // 눈 (더 크고 귀엽게)
     const eyeGeometry = new THREE.SphereGeometry(0.06, 16, 16);
     const eyeMaterial = new THREE.MeshStandardMaterial({
       color: 0xffffff,
@@ -348,7 +321,7 @@ const Pomodoro: React.FC = () => {
     rightPupil.position.set(0.08, 0.98, 0.18);
     penguinGroup.add(rightPupil);
 
-    // 발
+    // 발 (더 귀여운 크기)
     const footGeometry = new THREE.SphereGeometry(0.08, 16, 8);
     footGeometry.scale(1.3, 0.3, 1);
     const footMaterial = new THREE.MeshStandardMaterial({
@@ -367,105 +340,64 @@ const Pomodoro: React.FC = () => {
     rightFoot.castShadow = true;
     penguinGroup.add(rightFoot);
 
-    // 전체 크기 조정
+    // 전체 크기 조정 (더 크게)
     penguinGroup.scale.setScalar(1.2);
 
     return penguinGroup;
-  };
-
-  // 궤적 업데이트 함수
-  const updateTrail = () => {
-    if (!trailGroupRef.current) return;
-
-    // 기존 궤적 제거
-    while (trailGroupRef.current.children.length > 0) {
-      const child = trailGroupRef.current.children[0];
-      trailGroupRef.current.remove(child);
-    }
-
-    // 새로운 궤적 추가
-    penguinTrail.forEach((point, index) => {
-      const age = (Date.now() - point.time) / 1000; // 초 단위
-      const opacity = Math.max(0, 1 - age / 30); // 30초 동안 점점 사라짐
-
-      const trailGeometry = new THREE.SphereGeometry(0.05, 8, 8);
-      const trailMaterial = new THREE.MeshStandardMaterial({
-        color: 0x4fc3f7,
-        transparent: true,
-        opacity: opacity,
-        emissive: 0x4fc3f7,
-        emissiveIntensity: 0.2,
-      });
-
-      const trailPoint = new THREE.Mesh(trailGeometry, trailMaterial);
-      trailPoint.position.set(point.x, 0.05, point.z);
-      if (trailGroupRef.current) {
-        trailGroupRef.current.add(trailPoint);
-      }
-    });
   };
 
   const animate = () => {
     animationIdRef.current = requestAnimationFrame(animate);
 
     if (penguinRef.current && sceneRef.current && rendererRef.current && cameraRef.current) {
-      // 원형 경로 계산
-      const progress = penguinProgress / 100;
-      const angle = progress * Math.PI * 2; // 완전한 원을 한 바퀴
-      const radius = 6;
-
-      // 원형 경로 위치
-      const targetX = Math.cos(angle) * radius;
-      const targetZ = Math.sin(angle) * radius;
-
+      // 펭귄 위치 업데이트 (진행도에 따라)
+      const targetX = -18 + (penguinProgress / 100) * 36; // -18에서 18까지
       penguinRef.current.position.x = targetX;
-      penguinRef.current.position.z = targetZ;
 
-      // 걷는 애니메이션
+      // 걷는 애니메이션 (더 역동적으로)
       if (isActive) {
-        const time = Date.now() * 0.008; // 좀 더 빠르게
+        const time = Date.now() * 0.005; // 조금 더 빠르게
 
-        // 기본 걷는 상하 바운스
-        const walkBounce = Math.abs(Math.sin(time * 8)) * 0.1;
+        // 기본 걷는 상하 바운스 (걷는 효과)
+        const walkBounce = Math.abs(Math.sin(time * 6)) * 0.08;
 
-        // 강화된 점프 애니메이션 (더 자주, 더 높게)
-        const jumpTime = time * 1.5; // 점프 주기 증가
-        const jumpPhase = jumpTime % (Math.PI * 2); // 2π 주기로 더 자주 점프
+        // 랜덤 점프 애니메이션 (가끔씩 높이 점프!)
+        const jumpTime = time * 0.8; // 점프 주기
+        const jumpPhase = jumpTime % (Math.PI * 4); // 4π 주기로 점프
         let jumpHeight = 0;
 
-        if (jumpPhase < Math.PI * 0.6) {
-          // 점프 구간을 더 길게
-          jumpHeight = Math.sin(jumpPhase / 0.6) * 0.8; // 점프 높이 2배 증가
+        // 점프는 주기의 특정 부분에서만 발생
+        if (jumpPhase < Math.PI) {
+          // 점프 구간: 부드러운 포물선 모양
+          jumpHeight = Math.sin(jumpPhase) * 0.4; // 점프 높이
         }
 
-        // 총 높이
+        // 총 높이 = 기본 걸음 + 점프
         penguinRef.current.position.y = walkBounce + jumpHeight + 0.05;
 
-        // 이동 방향으로 회전 (원형 경로를 따라)
-        penguinRef.current.lookAt(
-          Math.cos(angle + 0.1) * radius,
-          penguinRef.current.position.y,
-          Math.sin(angle + 0.1) * radius
-        );
+        // 좌우 흔들림 (펭귄스러운 걸음걸이)
+        penguinRef.current.rotation.z = Math.sin(time * 4) * 0.15;
 
-        // 걷기 애니메이션 강화
-        penguinRef.current.rotation.z = Math.sin(time * 6) * 0.2;
+        // 앞뒤 기울임 (점프할 때 더 역동적)
+        const tiltIntensity = jumpHeight > 0 ? 0.2 : 0.1; // 점프 중일 때 더 기울임
+        penguinRef.current.rotation.x = Math.sin(time * 3) * tiltIntensity;
 
-        // 점프할 때 특별한 효과
-        if (jumpHeight > 0.3) {
-          // 점프 중일 때 빠른 날개짓
-          penguinRef.current.rotation.z = Math.sin(time * 20) * 0.4;
-          penguinRef.current.rotation.x = -0.2; // 앞으로 기울임
+        // 진행 방향으로 살짝 기울기 (점프 중일 때 앞으로 더 기울임)
+        const forwardTilt = jumpHeight > 0 ? -0.3 : 0; // 점프할 때 앞으로 기울임
+        penguinRef.current.rotation.y = Math.sin(time * 2) * 0.05 + forwardTilt;
+
+        // 날개짓 효과 (점프할 때)
+        if (jumpHeight > 0.1) {
+          // 점프 중일 때 좌우로 더 크게 흔들림 (날개짓 효과)
+          penguinRef.current.rotation.z = Math.sin(time * 12) * 0.3;
         }
       } else {
-        // 정지 시 기본 자세로 복귀
+        // 정지 시 기본 자세로 복귀 (부드럽게)
         penguinRef.current.position.y = THREE.MathUtils.lerp(penguinRef.current.position.y, 0, 0.1);
         penguinRef.current.rotation.x = THREE.MathUtils.lerp(penguinRef.current.rotation.x, 0, 0.1);
         penguinRef.current.rotation.z = THREE.MathUtils.lerp(penguinRef.current.rotation.z, 0, 0.1);
+        penguinRef.current.rotation.y = THREE.MathUtils.lerp(penguinRef.current.rotation.y, 0, 0.1);
       }
-
-      // 궤적 업데이트
-      updateTrail();
 
       rendererRef.current.render(sceneRef.current, cameraRef.current);
     }
@@ -491,7 +423,6 @@ const Pomodoro: React.FC = () => {
     setTime(isBreak ? 5 * 60 : 25 * 60);
     setPenguinProgress(0);
     setSessionStartTime(null);
-    setPenguinTrail([]); // 궤적도 초기화
   };
 
   const handleTimerComplete = async () => {
@@ -597,7 +528,7 @@ const Pomodoro: React.FC = () => {
           <Timer /> 🐧 펭귄 뽀모도로
         </Typography>
         <Typography variant="body1" color="textSecondary">
-          펭귄과 함께 빙하를 한 바퀴 도며 집중해보세요! 🍅❄️
+          펭귄과 함께 집중해서 작업을 완료해보세요! 🍅
         </Typography>
       </Box>
 
@@ -611,7 +542,7 @@ const Pomodoro: React.FC = () => {
               left: "50%",
               transform: "translate(-50%, -50%)",
               zIndex: 9999,
-              minWidth: isMobile ? 300 : 400,
+              minWidth: 400,
               background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
               color: "white",
               boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
@@ -725,10 +656,6 @@ const Pomodoro: React.FC = () => {
             <Typography variant="body2" color="text.secondary">
               완료된 세션: {completedSessions}개 🎯
             </Typography>
-
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              궤적 포인트: {penguinTrail.length}개 ✨
-            </Typography>
           </CardContent>
         </Card>
 
@@ -756,7 +683,7 @@ const Pomodoro: React.FC = () => {
               />
 
               {/* 컨트롤 버튼 */}
-              <Box sx={{ display: "flex", justifyContent: "center", gap: 1, flexWrap: "wrap" }}>
+              <Box sx={{ display: "flex", justifyContent: "center", gap: 1 }}>
                 {!isActive ? (
                   <Button
                     variant="contained"
@@ -795,29 +722,27 @@ const Pomodoro: React.FC = () => {
             </CardContent>
           </Card>
 
-          {/* 펭귄 씬 - 반응형 크기 */}
+          {/* 펭귄 씬 */}
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom sx={{ textAlign: "center" }}>
-                🐧 펭귄의 빙하 한 바퀴 여행
+                🐧 펭귄의 여행
               </Typography>
               <Box
                 ref={mountRef}
                 sx={{
                   width: "100%",
-                  height: { xs: 250, sm: 300, md: 400 }, // 반응형 높이
+                  height: 200,
                   borderRadius: 2,
                   overflow: "hidden",
-                  bgcolor: "#f0f8ff",
                   "& canvas": {
                     width: "100% !important",
                     height: "100% !important",
-                    borderRadius: 2,
                   },
                 }}
               />
-              <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", mt: 2 }}>
-                🔵 펭귄이 원형 빙하를 돌며 여행합니다! <br />✨ 파란 점들은 펭귀가 지나간 궤적이에요 (1초마다 생성)
+              <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", mt: 1 }}>
+                시작점에서 도착점까지 펭귄이 걸어갑니다! 🚶‍♂️
               </Typography>
             </CardContent>
           </Card>
