@@ -44,6 +44,7 @@ const Pomodoro: React.FC = () => {
   const isActiveRef = useRef(false);
   const penguinProgressRef = useRef(0);
   const timeRef = useRef(25 * 60);
+  const penguinTrailRef = useRef<Array<{ x: number; y: number; z: number; time: number }>>([]);
 
   // 뽀모도로 상태
   const [isActive, setIsActive] = useState(false);
@@ -146,7 +147,7 @@ const Pomodoro: React.FC = () => {
           console.log("✨ 궤적 생성 상태:", {
             isActive: currentIsActive,
             interval: currentIsActive ? "1초" : "3초",
-            currentTrailCount: penguinTrail.length,
+            currentTrailCount: penguinTrailRef.current.length,
           });
 
           const currentPos = penguinRef.current.position;
@@ -171,7 +172,7 @@ const Pomodoro: React.FC = () => {
               z: currentPos.z.toFixed(2),
             },
             isActive: currentIsActive,
-            currentTrailCount: penguinTrail.length,
+            currentTrailCount: penguinTrailRef.current.length,
             펭귄높이: currentPos.y.toFixed(2),
             궤적예상높이: (1.0).toFixed(2),
           });
@@ -191,6 +192,9 @@ const Pomodoro: React.FC = () => {
               추가후: updated.length,
               정리후: filtered.length,
             });
+
+            // 🔧 ref도 동시에 업데이트!
+            penguinTrailRef.current = filtered;
 
             return filtered;
           });
@@ -524,14 +528,14 @@ const Pomodoro: React.FC = () => {
     }
 
     // 궤적이 있는지 확인
-    if (penguinTrail.length === 0) {
+    if (penguinTrailRef.current.length === 0) {
       return;
     }
 
-    console.log(`🎨 궤적 렌더링 중: ${penguinTrail.length}개 점`);
+    console.log(`🎨 궤적 렌더링 중: ${penguinTrailRef.current.length}개 점`);
 
     // 새로운 궤적 추가 (가시성 최대 강화!)
-    penguinTrail.forEach((point, index) => {
+    penguinTrailRef.current.forEach((point, index) => {
       const age = (Date.now() - point.time) / 1000; // 초 단위
       const opacity = Math.max(0.4, 1 - age / 30); // 최소 0.4 투명도 (더 진하게)
       const scale = Math.max(0.7, 1 - age / 30); // 최소 0.7 크기 (더 크게)
@@ -756,6 +760,7 @@ const Pomodoro: React.FC = () => {
     setPenguinProgress(0);
     setSessionStartTime(null);
     setPenguinTrail([]); // 궤적도 초기화
+    penguinTrailRef.current = []; // ref도 초기화
 
     console.log("🔄 resetTimer 완료! 모든 상태 초기화!");
   };
