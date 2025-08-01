@@ -66,10 +66,22 @@ const Pomodoro: React.FC = () => {
     loadProjects();
     loadProjectTodos();
     setupThreeJS();
+
+    // 페이지 visibility 변경 시 데이터 새로고침
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        console.log("🐧 Pomodoro 페이지 활성화 - 데이터 새로고침");
+        loadProjectTodos();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     return () => {
       if (animationIdRef.current) {
         cancelAnimationFrame(animationIdRef.current);
       }
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);
 
@@ -111,15 +123,33 @@ const Pomodoro: React.FC = () => {
     try {
       const user = getCurrentUser();
       if (user) {
-        // Firebase에서 projectTodos 로드하기 (나중에 구현 예정)
-        // 지금은 localStorage에서 로드
+        const result = await loadUserData(user.uid, "projectTodos");
+        if (result.success && result.data) {
+          console.log("🐧 Pomodoro: Firebase에서 할일 로드 성공:", result.data);
+          setProjectTodos(result.data);
+        } else {
+          console.log("🐧 Pomodoro: Firebase에 할일 데이터 없음");
+        }
+      } else {
+        // 로그인되지 않은 경우 localStorage에서 로드
         const savedTodos = localStorage.getItem("projectTodos");
         if (savedTodos) {
-          setProjectTodos(JSON.parse(savedTodos));
+          const parsedTodos = JSON.parse(savedTodos);
+          console.log("🐧 Pomodoro: localStorage에서 할일 로드:", parsedTodos);
+          setProjectTodos(parsedTodos);
+        } else {
+          console.log("🐧 Pomodoro: localStorage에도 할일 없음");
         }
       }
     } catch (error) {
       console.error("할일 로드 실패:", error);
+      // Fallback to localStorage
+      const savedTodos = localStorage.getItem("projectTodos");
+      if (savedTodos) {
+        const parsedTodos = JSON.parse(savedTodos);
+        console.log("🐧 Pomodoro: Fallback - localStorage에서 할일 로드:", parsedTodos);
+        setProjectTodos(parsedTodos);
+      }
     }
   };
 
@@ -424,6 +454,16 @@ const Pomodoro: React.FC = () => {
     ? (projectTodos[selectedProject.id] || []).filter((todo) => !todo.completed)
     : [];
 
+  // 디버깅: availableTasks 계산 결과 확인
+  useEffect(() => {
+    if (selectedProject) {
+      console.log("🐧 선택된 프로젝트:", selectedProject.title, selectedProject.id);
+      console.log("🐧 전체 projectTodos:", projectTodos);
+      console.log("🐧 이 프로젝트의 할일들:", projectTodos[selectedProject.id]);
+      console.log("🐧 사용 가능한 할일들:", availableTasks);
+    }
+  }, [selectedProject, projectTodos, availableTasks]);
+
   return (
     <Box sx={{ p: isMobile ? 2 : 3 }}>
       {/* 헤더 */}
@@ -517,6 +557,12 @@ const Pomodoro: React.FC = () => {
                   const project = projects.find((p) => p.id === e.target.value);
                   setSelectedProject(project || null);
                   setSelectedTask(null);
+
+                  // 프로젝트 선택 시 할일 데이터 새로고침
+                  if (project) {
+                    console.log("🐧 프로젝트 선택됨, 할일 데이터 새로고침:", project.title);
+                    loadProjectTodos();
+                  }
                 }}
               >
                 {projects.map((project) => (
