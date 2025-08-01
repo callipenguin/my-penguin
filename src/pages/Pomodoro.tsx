@@ -103,11 +103,12 @@ const Pomodoro: React.FC = () => {
     };
   }, []);
 
-  // 궤적 업데이트 (1초마다)
+  // 궤적 업데이트 (1초마다) - 강화된 버전
   useEffect(() => {
-    if (isActive && penguinRef.current) {
-      const interval = setInterval(() => {
-        const currentPos = penguinRef.current!.position;
+    // 항상 궤적 생성 (타이머 상관없이)
+    const interval = setInterval(() => {
+      if (penguinRef.current) {
+        const currentPos = penguinRef.current.position;
         const newTrailPoint = {
           x: currentPos.x,
           y: currentPos.y,
@@ -115,9 +116,14 @@ const Pomodoro: React.FC = () => {
           time: Date.now(),
         };
 
-        console.log("✨ 새로운 궤적 추가:", {
-          position: { x: currentPos.x, y: currentPos.y, z: currentPos.z },
+        console.log("✨ 강제 궤적 추가:", {
+          position: {
+            x: currentPos.x.toFixed(2),
+            y: currentPos.y.toFixed(2),
+            z: currentPos.z.toFixed(2),
+          },
           totalTrails: penguinTrail.length + 1,
+          isActive: isActive,
         });
 
         setPenguinTrail((prev) => {
@@ -132,11 +138,13 @@ const Pomodoro: React.FC = () => {
 
           return filtered;
         });
-      }, 1000);
+      } else {
+        console.log("❌ 펭귄 ref가 없어요!");
+      }
+    }, 1000);
 
-      return () => clearInterval(interval);
-    }
-  }, [isActive, penguinTrail.length]); // penguinTrail.length 의존성 추가
+    return () => clearInterval(interval);
+  }, []); // 의존성 배열 단순화
 
   // 타이머 효과
   useEffect(() => {
@@ -443,76 +451,80 @@ const Pomodoro: React.FC = () => {
     animationIdRef.current = requestAnimationFrame(animate);
 
     if (penguinRef.current && sceneRef.current && rendererRef.current && cameraRef.current) {
-      // 원형 경로 계산 (속도감 개선)
+      // 강제 움직임: 항상 시간 기반으로 움직이게!
+      const currentTime = Date.now() * 0.001; // 초 단위
+
+      // 원형 경로 계산 (진행도 + 강제 시간 기반 움직임)
       const progress = penguinProgress / 100;
 
-      // 실제 시간 기반 추가 회전 (속도감을 위한 시각적 효과)
-      const timeBasedRotation = isActive ? Date.now() * 0.0005 : 0; // 더 빠른 시각적 회전
+      // 타이머가 활성화되면 빠르게, 아니면 천천히
+      const timeSpeed = isActive ? 0.5 : 0.1;
+      const timeBasedRotation = currentTime * timeSpeed;
+
+      // 최종 각도: 진행도 + 시간 기반 회전
       const angle = progress * Math.PI * 2 + timeBasedRotation;
       const radius = 6;
 
-      // 원형 경로 위치
+      // 원형 경로 위치 계산
       const targetX = Math.cos(angle) * radius;
       const targetZ = Math.sin(angle) * radius;
 
-      // 디버깅 로그 (가끔씩)
-      if (Math.random() < 0.01) {
-        // 1% 확률로 로그
-        console.log("🐧 펭귄 상태:", {
-          progress: penguinProgress,
+      // 강제 디버깅 로그 (매번)
+      if (Math.random() < 0.05) {
+        // 5% 확률로 로그
+        console.log("🐧 LIVE 펭귄 상태:", {
+          penguinProgress: penguinProgress,
+          progress: progress,
+          timeBasedRotation: timeBasedRotation,
           angle: angle,
-          targetX: targetX,
-          targetZ: targetZ,
+          targetX: targetX.toFixed(2),
+          targetZ: targetZ.toFixed(2),
+          currentPos: {
+            x: penguinRef.current.position.x.toFixed(2),
+            y: penguinRef.current.position.y.toFixed(2),
+            z: penguinRef.current.position.z.toFixed(2),
+          },
           isActive: isActive,
-          time: Date.now(),
+          time: currentTime,
         });
       }
 
+      // 펭귄 위치 강제 업데이트
       penguinRef.current.position.x = targetX;
       penguinRef.current.position.z = targetZ;
 
-      // 걷는 애니메이션 (더 빠르고 역동적으로)
-      if (isActive) {
-        const time = Date.now() * 0.012; // 더 빠른 애니메이션
+      // 강화된 걷기 애니메이션 (항상 활성화)
+      const animTime = currentTime * 8; // 더 빠른 애니메이션
 
-        // 기본 걷는 상하 바운스 (더 크게)
-        const walkBounce = Math.abs(Math.sin(time * 10)) * 0.15;
+      // 기본 걷는 상하 바운스 (항상 활성화)
+      const walkBounce = Math.abs(Math.sin(animTime)) * 0.15;
 
-        // 강화된 점프 애니메이션 (더 자주, 더 높게)
-        const jumpTime = time * 2; // 점프 주기 더 증가
-        const jumpPhase = jumpTime % (Math.PI * 1.5); // 더 자주 점프
-        let jumpHeight = 0;
+      // 점프 애니메이션 (더 자주, 더 높게)
+      const jumpPhase = (animTime * 2) % (Math.PI * 1.2);
+      let jumpHeight = 0;
 
-        if (jumpPhase < Math.PI * 0.7) {
-          // 점프 구간
-          jumpHeight = Math.sin(jumpPhase / 0.7) * 1.2; // 더 높은 점프
-        }
+      if (jumpPhase < Math.PI * 0.8) {
+        jumpHeight = Math.sin(jumpPhase / 0.8) * (isActive ? 1.5 : 0.8);
+      }
 
-        // 총 높이
-        penguinRef.current.position.y = walkBounce + jumpHeight + 0.05;
+      // 총 높이 (항상 움직임)
+      penguinRef.current.position.y = walkBounce + jumpHeight + 0.1;
 
-        // 이동 방향으로 회전 (원형 경로를 따라)
-        const lookAheadAngle = angle + 0.2; // 더 앞을 보도록
-        penguinRef.current.lookAt(
-          Math.cos(lookAheadAngle) * radius,
-          penguinRef.current.position.y,
-          Math.sin(lookAheadAngle) * radius
-        );
+      // 이동 방향으로 회전 (더 자연스럽게)
+      const lookAheadAngle = angle + 0.3;
+      penguinRef.current.lookAt(
+        Math.cos(lookAheadAngle) * radius,
+        penguinRef.current.position.y,
+        Math.sin(lookAheadAngle) * radius
+      );
 
-        // 걷기 애니메이션 강화 (더 역동적)
-        penguinRef.current.rotation.z = Math.sin(time * 8) * 0.3;
+      // 걷기 애니메이션 (항상 활성화)
+      penguinRef.current.rotation.z = Math.sin(animTime) * 0.3;
 
-        // 점프할 때 특별한 효과 (더 극적으로)
-        if (jumpHeight > 0.5) {
-          // 점프 중일 때 빠른 날개짓
-          penguinRef.current.rotation.z = Math.sin(time * 25) * 0.5;
-          penguinRef.current.rotation.x = -0.3; // 더 앞으로 기울임
-        }
-      } else {
-        // 정지 시 기본 자세로 복귀
-        penguinRef.current.position.y = THREE.MathUtils.lerp(penguinRef.current.position.y, 0, 0.1);
-        penguinRef.current.rotation.x = THREE.MathUtils.lerp(penguinRef.current.rotation.x, 0, 0.1);
-        penguinRef.current.rotation.z = THREE.MathUtils.lerp(penguinRef.current.rotation.z, 0, 0.1);
+      // 점프할 때 특별한 효과
+      if (jumpHeight > 0.5) {
+        penguinRef.current.rotation.z = Math.sin(animTime * 3) * 0.6;
+        penguinRef.current.rotation.x = -0.4;
       }
 
       // 궤적 업데이트
@@ -531,10 +543,16 @@ const Pomodoro: React.FC = () => {
   const startTimer = () => {
     setIsActive(true);
     setSessionStartTime(new Date().toISOString());
+
+    // 즉시 펭귄 움직임 시작!
+    console.log("🚀 타이머 시작! 펭귄 움직임 활성화!");
+    console.log("현재 진행도:", penguinProgress);
+    console.log("현재 시간:", time);
   };
 
   const pauseTimer = () => {
     setIsActive(false);
+    console.log("⏸️ 타이머 일시정지 - 펭귄은 천천히 계속 움직여요");
   };
 
   const resetTimer = () => {
@@ -543,6 +561,7 @@ const Pomodoro: React.FC = () => {
     setPenguinProgress(0);
     setSessionStartTime(null);
     setPenguinTrail([]); // 궤적도 초기화
+    console.log("🔄 타이머 리셋! 펭귄 처음 위치로");
   };
 
   const handleTimerComplete = async () => {
