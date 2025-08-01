@@ -161,9 +161,9 @@ const Pomodoro: React.FC = () => {
     scene.background = new THREE.Color(0xf0f8ff);
     sceneRef.current = scene;
 
-    // 카메라 생성
+    // 카메라 생성 (더 넓은 시야각으로)
     const camera = new THREE.PerspectiveCamera(75, 400 / 200, 0.1, 1000);
-    camera.position.set(0, 3, 10);
+    camera.position.set(0, 4, 12); // 좀 더 높이, 뒤로
     camera.lookAt(0, 1, 0);
     cameraRef.current = camera;
 
@@ -183,8 +183,8 @@ const Pomodoro: React.FC = () => {
     directionalLight.castShadow = true;
     scene.add(directionalLight);
 
-    // 바닥 (빙하)
-    const groundGeometry = new THREE.PlaneGeometry(20, 5);
+    // 바닥 (빙하) - 더 길게!
+    const groundGeometry = new THREE.PlaneGeometry(40, 8); // 20 → 40으로 더 길게
     const groundMaterial = new THREE.MeshStandardMaterial({
       color: 0xe6f3ff,
       roughness: 0.8,
@@ -194,22 +194,39 @@ const Pomodoro: React.FC = () => {
     ground.receiveShadow = true;
     scene.add(ground);
 
-    // 시작점과 도착점 표시
-    const startGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.1, 16);
+    // 시작점 (더 멀리)
+    const startGeometry = new THREE.CylinderGeometry(0.4, 0.4, 0.15, 16);
     const startMaterial = new THREE.MeshStandardMaterial({ color: 0x4caf50 });
     const start = new THREE.Mesh(startGeometry, startMaterial);
-    start.position.set(-8, 0.05, 0);
+    start.position.set(-18, 0.08, 0); // -8 → -18로 더 멀리
     scene.add(start);
 
-    const finishGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.1, 16);
+    // 도착점 (더 멀리)
+    const finishGeometry = new THREE.CylinderGeometry(0.4, 0.4, 0.15, 16);
     const finishMaterial = new THREE.MeshStandardMaterial({ color: 0xf44336 });
     const finish = new THREE.Mesh(finishGeometry, finishMaterial);
-    finish.position.set(8, 0.05, 0);
+    finish.position.set(18, 0.08, 0); // 8 → 18로 더 멀리
     scene.add(finish);
+
+    // 중간 지점 표시들 (진행상황을 더 잘 보이게)
+    for (let i = -15; i <= 15; i += 6) {
+      if (i !== -18 && i !== 18) {
+        // 시작점, 도착점 제외
+        const markerGeometry = new THREE.CylinderGeometry(0.15, 0.15, 0.05, 8);
+        const markerMaterial = new THREE.MeshStandardMaterial({
+          color: 0x81c784,
+          transparent: true,
+          opacity: 0.7,
+        });
+        const marker = new THREE.Mesh(markerGeometry, markerMaterial);
+        marker.position.set(i, 0.03, 0);
+        scene.add(marker);
+      }
+    }
 
     // 펭귄 생성
     const penguin = createPenguin();
-    penguin.position.set(-8, 0, 0);
+    penguin.position.set(-18, 0, 0); // 새로운 시작점
     penguinRef.current = penguin;
     scene.add(penguin);
 
@@ -330,30 +347,52 @@ const Pomodoro: React.FC = () => {
 
     if (penguinRef.current && sceneRef.current && rendererRef.current && cameraRef.current) {
       // 펭귄 위치 업데이트 (진행도에 따라)
-      const targetX = -8 + (penguinProgress / 100) * 16; // -8에서 8까지
+      const targetX = -18 + (penguinProgress / 100) * 36; // -18에서 18까지
       penguinRef.current.position.x = targetX;
 
       // 걷는 애니메이션 (더 역동적으로)
       if (isActive) {
         const time = Date.now() * 0.005; // 조금 더 빠르게
 
-        // 상하 바운스 (걷는 효과)
-        penguinRef.current.position.y = Math.abs(Math.sin(time * 6)) * 0.08 + 0.05;
+        // 기본 걷는 상하 바운스 (걷는 효과)
+        const walkBounce = Math.abs(Math.sin(time * 6)) * 0.08;
+
+        // 랜덤 점프 애니메이션 (가끔씩 높이 점프!)
+        const jumpTime = time * 0.8; // 점프 주기
+        const jumpPhase = jumpTime % (Math.PI * 4); // 4π 주기로 점프
+        let jumpHeight = 0;
+
+        // 점프는 주기의 특정 부분에서만 발생
+        if (jumpPhase < Math.PI) {
+          // 점프 구간: 부드러운 포물선 모양
+          jumpHeight = Math.sin(jumpPhase) * 0.4; // 점프 높이
+        }
+
+        // 총 높이 = 기본 걸음 + 점프
+        penguinRef.current.position.y = walkBounce + jumpHeight + 0.05;
 
         // 좌우 흔들림 (펭귄스러운 걸음걸이)
         penguinRef.current.rotation.z = Math.sin(time * 4) * 0.15;
 
-        // 앞뒤 기울임 (더 역동적)
-        penguinRef.current.rotation.x = Math.sin(time * 3) * 0.1;
+        // 앞뒤 기울임 (점프할 때 더 역동적)
+        const tiltIntensity = jumpHeight > 0 ? 0.2 : 0.1; // 점프 중일 때 더 기울임
+        penguinRef.current.rotation.x = Math.sin(time * 3) * tiltIntensity;
 
-        // 진행 방향으로 살짝 기울기
-        penguinRef.current.rotation.y = Math.sin(time * 2) * 0.05;
+        // 진행 방향으로 살짝 기울기 (점프 중일 때 앞으로 더 기울임)
+        const forwardTilt = jumpHeight > 0 ? -0.3 : 0; // 점프할 때 앞으로 기울임
+        penguinRef.current.rotation.y = Math.sin(time * 2) * 0.05 + forwardTilt;
+
+        // 날개짓 효과 (점프할 때)
+        if (jumpHeight > 0.1) {
+          // 점프 중일 때 좌우로 더 크게 흔들림 (날개짓 효과)
+          penguinRef.current.rotation.z = Math.sin(time * 12) * 0.3;
+        }
       } else {
-        // 정지 시 기본 자세로 복귀
-        penguinRef.current.position.y = 0;
-        penguinRef.current.rotation.x = 0;
-        penguinRef.current.rotation.z = 0;
-        penguinRef.current.rotation.y = 0;
+        // 정지 시 기본 자세로 복귀 (부드럽게)
+        penguinRef.current.position.y = THREE.MathUtils.lerp(penguinRef.current.position.y, 0, 0.1);
+        penguinRef.current.rotation.x = THREE.MathUtils.lerp(penguinRef.current.rotation.x, 0, 0.1);
+        penguinRef.current.rotation.z = THREE.MathUtils.lerp(penguinRef.current.rotation.z, 0, 0.1);
+        penguinRef.current.rotation.y = THREE.MathUtils.lerp(penguinRef.current.rotation.y, 0, 0.1);
       }
 
       rendererRef.current.render(sceneRef.current, cameraRef.current);
