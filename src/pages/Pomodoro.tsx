@@ -105,46 +105,84 @@ const Pomodoro: React.FC = () => {
 
   // 궤적 업데이트 (1초마다) - 강화된 버전
   useEffect(() => {
-    // 항상 궤적 생성 (타이머 상관없이)
-    const interval = setInterval(() => {
-      if (penguinRef.current) {
-        const currentPos = penguinRef.current.position;
-        const newTrailPoint = {
-          x: currentPos.x,
-          y: currentPos.y,
-          z: currentPos.z,
-          time: Date.now(),
-        };
+    // 펭귄과 씬이 준비될 때까지 기다리기
+    const startTrailSystem = () => {
+      if (!penguinRef.current || !sceneRef.current) {
+        console.log("⏳ 펭귄이나 씬이 아직 준비되지 않음. 1초 후 재시도...");
+        setTimeout(startTrailSystem, 1000);
+        return;
+      }
 
-        console.log("✨ 강제 궤적 추가:", {
-          position: {
-            x: currentPos.x.toFixed(2),
-            y: currentPos.y.toFixed(2),
-            z: currentPos.z.toFixed(2),
-          },
-          totalTrails: penguinTrail.length + 1,
-          isActive: isActive,
-        });
+      console.log("🚀 궤적 시스템 시작! 펭귄 위치:", penguinRef.current.position);
 
-        setPenguinTrail((prev) => {
-          const updated = [...prev, newTrailPoint];
-          // 오래된 궤적 제거 (30초 이상)
-          const cutoffTime = Date.now() - 30000;
-          const filtered = updated.filter((point) => point.time > cutoffTime);
-
-          if (filtered.length !== updated.length) {
-            console.log("🗑️ 오래된 궤적 제거:", updated.length - filtered.length, "개");
+      // 항상 궤적 생성 (타이머 상관없이)
+      const interval = setInterval(() => {
+        if (penguinRef.current && sceneRef.current) {
+          // 🎯 타이머 활성화 상태에서만 궤적 생성!
+          if (!isActive) {
+            console.log("⏸️ 타이머 정지 중 - 궤적 생성 안함");
+            return;
           }
 
-          return filtered;
-        });
-      } else {
-        console.log("❌ 펭귄 ref가 없어요!");
-      }
-    }, 1000);
+          const currentPos = penguinRef.current.position;
 
-    return () => clearInterval(interval);
-  }, []); // 의존성 배열 단순화
+          // 위치가 유효한지 확인
+          if (isNaN(currentPos.x) || isNaN(currentPos.y) || isNaN(currentPos.z)) {
+            console.log("❌ 펭귄 위치가 유효하지 않음:", currentPos);
+            return;
+          }
+
+          const newTrailPoint = {
+            x: currentPos.x,
+            y: currentPos.y,
+            z: currentPos.z,
+            time: Date.now(),
+          };
+
+          console.log("✨ 새로운 궤적 추가:", {
+            position: {
+              x: currentPos.x.toFixed(2),
+              y: currentPos.y.toFixed(2),
+              z: currentPos.z.toFixed(2),
+            },
+            isActive: isActive,
+            currentTrailCount: penguinTrail.length,
+          });
+
+          setPenguinTrail((prev) => {
+            const updated = [...prev, newTrailPoint];
+            // 오래된 궤적 제거 (30초 이상)
+            const cutoffTime = Date.now() - 30000;
+            const filtered = updated.filter((point) => point.time > cutoffTime);
+
+            if (filtered.length !== updated.length) {
+              console.log("🗑️ 오래된 궤적 제거:", updated.length - filtered.length, "개");
+            }
+
+            console.log("📊 궤적 상태 업데이트:", {
+              이전: prev.length,
+              추가후: updated.length,
+              정리후: filtered.length,
+            });
+
+            return filtered;
+          });
+        } else {
+          console.log("❌ 펭귄 ref가 없어요! penguinRef:", !!penguinRef.current, "sceneRef:", !!sceneRef.current);
+        }
+      }, 1000);
+
+      return () => {
+        console.log("🛑 궤적 시스템 정리");
+        clearInterval(interval);
+      };
+    };
+
+    // 시스템 시작
+    const cleanup = startTrailSystem();
+
+    return cleanup;
+  }, [isActive]); // isActive 상태 변경 시 궤적 시스템 재시작
 
   // 타이머 효과
   useEffect(() => {
@@ -471,81 +509,91 @@ const Pomodoro: React.FC = () => {
     animationIdRef.current = requestAnimationFrame(animate);
 
     if (penguinRef.current && sceneRef.current && rendererRef.current && cameraRef.current) {
-      // 강제 움직임: 항상 시간 기반으로 움직이게!
       const currentTime = Date.now() * 0.001; // 초 단위
 
-      // 원형 경로 계산 (진행도 + 강제 시간 기반 움직임)
-      const progress = penguinProgress / 100;
+      // 🎯 뽀모도로 로직: 시작 후에만 움직임!
+      if (isActive) {
+        // ✅ 타이머 활성화 상태: 펭귄이 빠르게 돌기
+        const progress = penguinProgress / 100;
+        const timeSpeed = 0.5; // 빠른 움직임
+        const timeBasedRotation = currentTime * timeSpeed;
 
-      // 타이머가 활성화되면 빠르게, 아니면 천천히
-      const timeSpeed = isActive ? 0.5 : 0.1;
-      const timeBasedRotation = currentTime * timeSpeed;
+        // 원형 경로 계산
+        const angle = progress * Math.PI * 2 + timeBasedRotation;
+        const radius = 6;
+        const targetX = Math.cos(angle) * radius;
+        const targetZ = Math.sin(angle) * radius;
 
-      // 최종 각도: 진행도 + 시간 기반 회전
-      const angle = progress * Math.PI * 2 + timeBasedRotation;
-      const radius = 6;
+        // 펭귄 위치 업데이트
+        penguinRef.current.position.x = targetX;
+        penguinRef.current.position.z = targetZ;
 
-      // 원형 경로 위치 계산
-      const targetX = Math.cos(angle) * radius;
-      const targetZ = Math.sin(angle) * radius;
+        // 강화된 걷기 애니메이션
+        const animTime = currentTime * 8;
+        const walkBounce = Math.abs(Math.sin(animTime)) * 0.15;
 
-      // 강제 디버깅 로그 (매번)
-      if (Math.random() < 0.05) {
-        // 5% 확률로 로그
-        console.log("🐧 LIVE 펭귄 상태:", {
-          penguinProgress: penguinProgress,
-          progress: progress,
-          timeBasedRotation: timeBasedRotation,
-          angle: angle,
-          targetX: targetX.toFixed(2),
-          targetZ: targetZ.toFixed(2),
-          currentPos: {
-            x: penguinRef.current.position.x.toFixed(2),
-            y: penguinRef.current.position.y.toFixed(2),
-            z: penguinRef.current.position.z.toFixed(2),
-          },
-          isActive: isActive,
-          time: currentTime,
-        });
-      }
+        // 점프 애니메이션
+        const jumpPhase = (animTime * 2) % (Math.PI * 1.2);
+        let jumpHeight = 0;
+        if (jumpPhase < Math.PI * 0.8) {
+          jumpHeight = Math.sin(jumpPhase / 0.8) * 1.5;
+        }
 
-      // 펭귄 위치 강제 업데이트
-      penguinRef.current.position.x = targetX;
-      penguinRef.current.position.z = targetZ;
+        // 총 높이
+        penguinRef.current.position.y = walkBounce + jumpHeight + 0.1;
 
-      // 강화된 걷기 애니메이션 (항상 활성화)
-      const animTime = currentTime * 8; // 더 빠른 애니메이션
+        // 펭귄 방향 설정
+        const directionAngle = angle + Math.PI / 2;
+        penguinRef.current.rotation.y = directionAngle;
 
-      // 기본 걷는 상하 바운스 (항상 활성화)
-      const walkBounce = Math.abs(Math.sin(animTime)) * 0.15;
+        // 걷기 애니메이션
+        const walkTilt = Math.sin(animTime) * 0.3;
+        penguinRef.current.rotation.z = walkTilt;
 
-      // 점프 애니메이션 (더 자주, 더 높게)
-      const jumpPhase = (animTime * 2) % (Math.PI * 1.2);
-      let jumpHeight = 0;
+        // 점프 효과
+        if (jumpHeight > 0.5) {
+          penguinRef.current.rotation.z = Math.sin(animTime * 3) * 0.6;
+          penguinRef.current.rotation.x = -0.4;
+        } else {
+          penguinRef.current.rotation.x = THREE.MathUtils.lerp(penguinRef.current.rotation.x, 0, 0.1);
+        }
 
-      if (jumpPhase < Math.PI * 0.8) {
-        jumpHeight = Math.sin(jumpPhase / 0.8) * (isActive ? 1.5 : 0.8);
-      }
-
-      // 총 높이 (항상 움직임)
-      penguinRef.current.position.y = walkBounce + jumpHeight + 0.1;
-
-      // 🔧 펭귄 방향 수정 - lookAt 대신 수동 회전으로 왜곡 방지
-      // 이동 방향 계산 (90도 앞선 방향)
-      const directionAngle = angle + Math.PI / 2; // 90도 앞선 방향
-      penguinRef.current.rotation.y = directionAngle;
-
-      // 걷기 애니메이션 (항상 활성화) - 왜곡 방지를 위해 y축 회전은 건드리지 않음
-      const walkTilt = Math.sin(animTime) * 0.3;
-      penguinRef.current.rotation.z = walkTilt;
-
-      // 점프할 때 특별한 효과 - x축 회전만 사용
-      if (jumpHeight > 0.5) {
-        penguinRef.current.rotation.z = Math.sin(animTime * 3) * 0.6;
-        penguinRef.current.rotation.x = -0.4; // 앞으로 기울임
+        // 디버깅 로그
+        if (Math.random() < 0.05) {
+          console.log("🚀 펭귄 활발히 움직임:", {
+            progress: progress,
+            position: {
+              x: targetX.toFixed(2),
+              z: targetZ.toFixed(2),
+              y: penguinRef.current.position.y.toFixed(2),
+            },
+            angle: angle.toFixed(2),
+          });
+        }
       } else {
-        // 점프하지 않을 때는 x축 회전 초기화
-        penguinRef.current.rotation.x = THREE.MathUtils.lerp(penguinRef.current.rotation.x, 0, 0.1);
+        // ⏸️ 타이머 비활성화 상태: 펭귄이 시작점에서 대기
+
+        // 시작 위치에 고정 (빙하 가장자리)
+        penguinRef.current.position.x = 6;
+        penguinRef.current.position.z = 0;
+
+        // 제자리에서 약간의 대기 애니메이션 (숨쉬기 효과)
+        const idleTime = currentTime * 2; // 느린 애니메이션
+        const idleBreathe = Math.sin(idleTime) * 0.05; // 아주 작은 상하 움직임
+        penguinRef.current.position.y = 0.1 + idleBreathe;
+
+        // 정면을 향하도록 (시계 반대 방향으로 걸을 준비)
+        penguinRef.current.rotation.y = Math.PI / 2;
+
+        // 대기 중 약간의 몸 흔들림
+        const idleBodySway = Math.sin(idleTime * 0.5) * 0.1;
+        penguinRef.current.rotation.z = idleBodySway;
+        penguinRef.current.rotation.x = 0;
+
+        // 가끔 디버깅 로그
+        if (Math.random() < 0.02) {
+          console.log("😴 펭귄 대기 중... 시작 버튼을 눌러주세요!");
+        }
       }
 
       // 궤적 업데이트
@@ -688,7 +736,7 @@ const Pomodoro: React.FC = () => {
           <Timer /> 🐧 펭귄 뽀모도로
         </Typography>
         <Typography variant="body1" color="textSecondary">
-          펭귄과 함께 빙하를 빠르게 돌며 집중해보세요! 🚀❄️ (실시간 움직임 + 궤적!)
+          집중할 준비가 되면 시작해보세요! 펭귄이 빙하를 돌며 함께해줄 거예요! 🐧⭐️
         </Typography>
       </Box>
 
@@ -908,9 +956,9 @@ const Pomodoro: React.FC = () => {
                 }}
               />
               <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", mt: 2 }}>
-                🔵 펭귄이 원형 빙하를 실시간으로 돌고 있어요! <br />
-                ✨ 청록색 점들은 펭귀가 지나간 궤적 (1초마다 생성, 30초 후 사라짐) <br />
-                🚀 타이머를 시작하면 펭귄이 빠르게 움직여요!
+                🐧 펭귄이 시작 버튼을 기다리며 대기 중이에요! <br />
+                ▶️ 타이머 시작하면 빙하를 빠르게 돌며 청록색 궤적을 남겨요! <br />✨ 궤적은 1초마다 생성되고 30초 후
+                자연스럽게 사라져요!
               </Typography>
             </CardContent>
           </Card>
