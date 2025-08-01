@@ -487,9 +487,17 @@ const Settings: React.FC = () => {
                   <Select
                     value={preferences.theme}
                     label="테마"
-                    onChange={(e) =>
-                      setPreferences((prev) => ({ ...prev, theme: e.target.value as "light" | "dark" | "auto" }))
-                    }
+                    onChange={(e) => {
+                      const newTheme = e.target.value as "light" | "dark" | "auto";
+                      setPreferences((prev) => ({ ...prev, theme: newTheme }));
+
+                      // 즉시 테마 적용을 위해 설정 저장
+                      const updatedPreferences = { ...preferences, theme: newTheme };
+                      localStorage.setItem("settings", JSON.stringify(updatedPreferences));
+
+                      // 페이지 새로고침으로 테마 즉시 적용
+                      window.location.reload();
+                    }}
                   >
                     <MenuItem value="light">라이트 모드 ☀️</MenuItem>
                     <MenuItem value="dark">다크 모드 🌙</MenuItem>
@@ -498,7 +506,7 @@ const Settings: React.FC = () => {
                 </FormControl>
 
                 <Typography variant="body2" color="textSecondary">
-                  테마 변경은 앱을 다시 시작한 후 적용됩니다.
+                  테마 변경이 즉시 적용됩니다! ✨
                 </Typography>
               </Stack>
             </AccordionDetails>
@@ -939,9 +947,17 @@ const Settings: React.FC = () => {
                   <Select
                     value={preferences.theme}
                     label="테마"
-                    onChange={(e) =>
-                      setPreferences((prev) => ({ ...prev, theme: e.target.value as "light" | "dark" | "auto" }))
-                    }
+                    onChange={(e) => {
+                      const newTheme = e.target.value as "light" | "dark" | "auto";
+                      setPreferences((prev) => ({ ...prev, theme: newTheme }));
+
+                      // 즉시 테마 적용을 위해 설정 저장
+                      const updatedPreferences = { ...preferences, theme: newTheme };
+                      localStorage.setItem("settings", JSON.stringify(updatedPreferences));
+
+                      // 페이지 새로고침으로 테마 즉시 적용
+                      window.location.reload();
+                    }}
                   >
                     <MenuItem value="light">라이트 모드 ☀️</MenuItem>
                     <MenuItem value="dark">다크 모드 🌙</MenuItem>
@@ -949,8 +965,8 @@ const Settings: React.FC = () => {
                   </Select>
                 </FormControl>
 
-                <Typography variant="body2" color="textSecondary" sx={{ mt: 2 }}>
-                  테마 변경은 앱을 다시 시작한 후 적용됩니다.
+                <Typography variant="body2" color="textSecondary">
+                  테마 변경이 즉시 적용됩니다! ✨
                 </Typography>
               </CardContent>
             </Card>

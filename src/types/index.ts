@@ -46,6 +46,14 @@ export type ProjectStatus = "planning" | "active" | "paused" | "completed" | "ca
 export type TaskStatus = "todo" | "in-progress" | "review" | "completed";
 export type Priority = "low" | "medium" | "high" | "urgent";
 
+// 간단한 할일 타입 (프로젝트별 관리용)
+export interface SimpleTodo {
+  id: string;
+  title: string;
+  completed: boolean;
+  createdAt: string;
+}
+
 // 솔루션 시스템 타입
 export interface Solution {
   id: string;
@@ -107,4 +115,47 @@ export interface ProjectStats {
   completedProjects: number;
   averageCompletionTime: number;
   productivityByHour: { hour: number; efficiency: number }[];
+}
+
+// 뽀모도로 관련 타입
+export interface PomodoroSession {
+  id: string;
+  userId: string;
+  projectId: string;
+  projectTitle: string;
+  taskId: string;
+  taskTitle: string;
+  sessionType: "work" | "break";
+  duration: number; // 분 단위 (25분 또는 5분)
+  startTime: string; // ISO string
+  endTime: string; // ISO string
+  completed: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WeeklyPomodoroStats {
+  weekStart: string; // YYYY-MM-DD
+  weekEnd: string; // YYYY-MM-DD
+  totalSessions: number;
+  workSessions: number;
+  breakSessions: number;
+  totalMinutes: number;
+  projectBreakdown: Array<{
+    projectId: string;
+    projectTitle: string;
+    sessions: number;
+    minutes: number;
+    tasks: Array<{
+      taskId: string;
+      taskTitle: string;
+      sessions: number;
+      minutes: number;
+    }>;
+  }>;
+  dailyBreakdown: Array<{
+    date: string; // YYYY-MM-DD
+    sessions: number;
+    minutes: number;
+  }>;
 }

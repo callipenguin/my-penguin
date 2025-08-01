@@ -1,6 +1,7 @@
 import { signInWithPopup, signOut as firebaseSignOut, onAuthStateChanged, User } from "firebase/auth";
 import { doc, setDoc, getDoc, collection, getDocs, query, where } from "firebase/firestore";
 import { auth, googleProvider, db, AUTHORIZED_EMAILS } from "../config/firebase";
+import { PomodoroSession, WeeklyPomodoroStats } from "../types";
 
 // 인증 관련 함수들
 export const signInWithGoogle = async () => {
@@ -680,5 +681,166 @@ export const signInWithGoogleAndSync = async () => {
   } catch (error) {
     console.error("로그인 실패:", error);
     throw error;
+  }
+};
+
+// ===========================================
+// 🍅 뽀모도로 세션 관리 함수들
+// ===========================================
+
+// 뽀모도로 세션 저장
+export const savePomodoroSession = async (
+  userId: string,
+  sessionData: Omit<PomodoroSession, "id" | "userId" | "createdAt" | "updatedAt">
+): Promise<{ success: boolean; data?: PomodoroSession; error?: string }> => {
+  try {
+    const sessionId = `pomodoro_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const now = new Date().toISOString();
+
+    const session: PomodoroSession = {
+      id: sessionId,
+      userId,
+      ...sessionData,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    const docRef = doc(db, `users/${userId}/pomodoro_sessions`, sessionId);
+    await setDoc(docRef, session);
+
+    console.log("✅ 뽀모도로 세션 저장 성공:", session);
+    return { success: true, data: session };
+  } catch (error) {
+    console.error("❌ 뽀모도로 세션 저장 실패:", error);
+    return { success: false, error: error instanceof Error ? error.message : "알 수 없는 오류" };
+  }
+};
+
+// 뽀모도로 세션 조회 (날짜 범위)
+export const loadPomodoroSessions = async (
+  userId: string,
+  startDate?: string, // YYYY-MM-DD
+  endDate?: string // YYYY-MM-DD
+): Promise<{ success: boolean; data?: PomodoroSession[]; error?: string }> => {
+  try {
+    const sessionsRef = collection(db, `users/${userId}/pomodoro_sessions`);
+    let q = query(sessionsRef);
+
+    // 날짜 필터가 있으면 적용 (간단하게 문자열 비교로)
+    if (startDate) {
+      q = query(sessionsRef, where("startTime", ">=", startDate + "T00:00:00.000Z"));
+    }
+    if (endDate) {
+      q = query(sessionsRef, where("startTime", "<=", endDate + "T23:59:59.999Z"));
+    }
+
+    const querySnapshot = await getDocs(q);
+    const sessions: PomodoroSession[] = [];
+
+    querySnapshot.forEach((doc) => {
+      sessions.push(doc.data() as PomodoroSession);
+    });
+
+    // 시간순 정렬 (최신순)
+    sessions.sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
+
+    console.log(`✅ 뽀모도로 세션 조회 성공: ${sessions.length}개`);
+    return { success: true, data: sessions };
+  } catch (error) {
+    console.error("❌ 뽀모도로 세션 조회 실패:", error);
+    return { success: false, error: error instanceof Error ? error.message : "알 수 없는 오류" };
+  }
+};
+
+// 주차별 뽀모도로 통계 생성
+export const getWeeklyPomodoroStats = async (
+  userId: string,
+  weekStart: string // YYYY-MM-DD
+): Promise<{ success: boolean; data?: WeeklyPomodoroStats; error?: string }> => {
+  try {
+    // 주차의 시작과 끝 계산
+    const startDate = new Date(weekStart);
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + 6);
+
+    const weekStartStr = weekStart;
+    const weekEndStr = endDate.toISOString().split("T")[0];
+
+    // 해당 주차의 세션들 조회
+    const result = await loadPomodoroSessions(userId, weekStartStr, weekEndStr);
+    if (!result.success || !result.data) {
+      return { success: false, error: result.error };
+    }
+
+    const sessions = result.data.filter((s) => s.completed); // 완료된 세션만
+
+    // 통계 계산
+    const stats: WeeklyPomodoroStats = {
+      weekStart: weekStartStr,
+      weekEnd: weekEndStr,
+      totalSessions: sessions.length,
+      workSessions: sessions.filter((s) => s.sessionType === "work").length,
+      breakSessions: sessions.filter((s) => s.sessionType === "break").length,
+      totalMinutes: sessions.reduce((sum, s) => sum + s.duration, 0),
+      projectBreakdown: [],
+      dailyBreakdown: [],
+    };
+
+    // 프로젝트별 그룹화
+    const projectGroups: { [projectId: string]: PomodoroSession[] } = {};
+    sessions.forEach((session) => {
+      if (!projectGroups[session.projectId]) {
+        projectGroups[session.projectId] = [];
+      }
+      projectGroups[session.projectId].push(session);
+    });
+
+    // 프로젝트별 통계
+    stats.projectBreakdown = Object.entries(projectGroups).map(([projectId, projectSessions]) => {
+      const taskGroups: { [taskId: string]: PomodoroSession[] } = {};
+      projectSessions.forEach((session) => {
+        if (!taskGroups[session.taskId]) {
+          taskGroups[session.taskId] = [];
+        }
+        taskGroups[session.taskId].push(session);
+      });
+
+      return {
+        projectId,
+        projectTitle: projectSessions[0].projectTitle,
+        sessions: projectSessions.length,
+        minutes: projectSessions.reduce((sum, s) => sum + s.duration, 0),
+        tasks: Object.entries(taskGroups).map(([taskId, taskSessions]) => ({
+          taskId,
+          taskTitle: taskSessions[0].taskTitle,
+          sessions: taskSessions.length,
+          minutes: taskSessions.reduce((sum, s) => sum + s.duration, 0),
+        })),
+      };
+    });
+
+    // 일별 통계
+    const dailyGroups: { [date: string]: PomodoroSession[] } = {};
+    sessions.forEach((session) => {
+      const date = session.startTime.split("T")[0];
+      if (!dailyGroups[date]) {
+        dailyGroups[date] = [];
+      }
+      dailyGroups[date].push(session);
+    });
+
+    stats.dailyBreakdown = Object.entries(dailyGroups)
+      .map(([date, daySessions]) => ({
+        date,
+        sessions: daySessions.length,
+        minutes: daySessions.reduce((sum, s) => sum + s.duration, 0),
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    console.log("✅ 주차별 뽀모도로 통계 생성 성공:", stats);
+    return { success: true, data: stats };
+  } catch (error) {
+    console.error("❌ 주차별 뽀모도로 통계 생성 실패:", error);
+    return { success: false, error: error instanceof Error ? error.message : "알 수 없는 오류" };
   }
 };

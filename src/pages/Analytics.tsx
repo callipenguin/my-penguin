@@ -23,15 +23,21 @@ import {
   Psychology,
   EmojiEmotions,
   Lightbulb,
+  Timer,
+  Assignment,
+  AccessTime,
 } from "@mui/icons-material";
-import { ConditionEntry, ConditionLevel } from "../types";
+import { ConditionEntry, ConditionLevel, WeeklyPomodoroStats } from "../types";
 import dayjs from "dayjs";
-import { loadUserData, getCurrentUser } from "../utils/firebase";
+import { loadUserData, getCurrentUser, getWeeklyPomodoroStats } from "../utils/firebase";
 
 const Analytics: React.FC = () => {
   const theme = useTheme();
   const [conditions, setConditions] = useState<ConditionEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pomodoroStats, setPomodoroStats] = useState<WeeklyPomodoroStats | null>(null);
+  const [pomodoroLoading, setPomodoroLoading] = useState(true);
+  const [selectedWeek, setSelectedWeek] = useState<string>(dayjs().startOf("week").format("YYYY-MM-DD"));
 
   const conditionLevels: Record<ConditionLevel, { emoji: string; label: string; score: number; color: string }> = {
     excellent: { emoji: "🐧", label: "최고", score: 5, color: theme.palette.success.dark },
@@ -43,7 +49,8 @@ const Analytics: React.FC = () => {
 
   useEffect(() => {
     loadConditions();
-  }, []);
+    loadPomodoroData();
+  }, [selectedWeek]);
 
   const loadConditions = async () => {
     try {
@@ -69,6 +76,26 @@ const Analytics: React.FC = () => {
       setConditions([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadPomodoroData = async () => {
+    setPomodoroLoading(true);
+    try {
+      const user = getCurrentUser();
+      if (user) {
+        const result = await getWeeklyPomodoroStats(user.uid, selectedWeek);
+        if (result.success && result.data) {
+          setPomodoroStats(result.data);
+        } else {
+          setPomodoroStats(null);
+        }
+      }
+    } catch (error) {
+      console.error("뽀모도로 데이터 로드 실패:", error);
+      setPomodoroStats(null);
+    } finally {
+      setPomodoroLoading(false);
     }
   };
 
@@ -224,10 +251,198 @@ const Analytics: React.FC = () => {
       {/* 헤더 */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" fontWeight="bold" gutterBottom>
-          ❄️ 컨디션 분석
+          📊 빙하 분석
         </Typography>
         <Typography variant="body1" color="textSecondary">
-          펭귄의 생활 패턴을 분석해서 최적의 시간을 찾아드려요
+          펭귄의 생활 패턴과 뽀모도로 집중 세션을 분석해서 최적의 시간을 찾아드려요
+        </Typography>
+      </Box>
+
+      {/* 🍅 뽀모도로 통계 섹션 */}
+      <Box sx={{ mb: 6 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 3 }}>
+          <Typography
+            variant="h5"
+            fontWeight="bold"
+            sx={{
+              background: "linear-gradient(45deg, #ff6b6b 30%, #feca57 90%)",
+              backgroundClip: "text",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+            }}
+          >
+            🍅 뽀모도로 분석
+          </Typography>
+          <Chip
+            label={`${selectedWeek.split("-")[1]}월 ${selectedWeek.split("-")[2]}일 주차`}
+            variant="outlined"
+            size="small"
+          />
+        </Box>
+
+        {pomodoroLoading ? (
+          <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "200px" }}>
+            <CircularProgress />
+          </Box>
+        ) : pomodoroStats ? (
+          <Grid container spacing={3}>
+            {/* 주간 뽀모도로 개요 */}
+            <Grid item xs={12} md={4}>
+              <Card sx={{ height: "100%" }}>
+                <CardContent sx={{ textAlign: "center" }}>
+                  <Timer sx={{ fontSize: 48, color: theme.palette.success.main, mb: 2 }} />
+                  <Typography variant="h6" fontWeight="bold" gutterBottom>
+                    완료된 세션
+                  </Typography>
+                  <Typography variant="h3" color="success.main" gutterBottom>
+                    {pomodoroStats.totalSessions}
+                  </Typography>
+                  <Typography variant="body2" color="textSecondary">
+                    집중 {pomodoroStats.workSessions}회 · 휴식 {pomodoroStats.breakSessions}회
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            <Grid item xs={12} md={4}>
+              <Card sx={{ height: "100%" }}>
+                <CardContent sx={{ textAlign: "center" }}>
+                  <AccessTime sx={{ fontSize: 48, color: theme.palette.warning.main, mb: 2 }} />
+                  <Typography variant="h6" fontWeight="bold" gutterBottom>
+                    총 집중 시간
+                  </Typography>
+                  <Typography variant="h3" color="warning.main" gutterBottom>
+                    {Math.floor(pomodoroStats.totalMinutes / 60)}
+                  </Typography>
+                  <Typography variant="body2" color="textSecondary">
+                    시간 {pomodoroStats.totalMinutes % 60}분
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            <Grid item xs={12} md={4}>
+              <Card sx={{ height: "100%" }}>
+                <CardContent sx={{ textAlign: "center" }}>
+                  <Assignment sx={{ fontSize: 48, color: theme.palette.primary.main, mb: 2 }} />
+                  <Typography variant="h6" fontWeight="bold" gutterBottom>
+                    진행 프로젝트
+                  </Typography>
+                  <Typography variant="h3" color="primary" gutterBottom>
+                    {pomodoroStats.projectBreakdown.length}
+                  </Typography>
+                  <Typography variant="body2" color="textSecondary">
+                    개의 프로젝트 작업
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* 프로젝트별 상세 */}
+            <Grid item xs={12}>
+              <Card>
+                <CardContent>
+                  <Typography
+                    variant="h6"
+                    fontWeight="bold"
+                    gutterBottom
+                    sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                  >
+                    📋 프로젝트별 작업 내역 (주간보고용)
+                  </Typography>
+                  {pomodoroStats.projectBreakdown.map((project) => (
+                    <Box key={project.projectId} sx={{ mb: 3, p: 2, bgcolor: "grey.50", borderRadius: 2 }}>
+                      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+                        <Typography variant="subtitle1" fontWeight="bold">
+                          📁 {project.projectTitle}
+                        </Typography>
+                        <Chip
+                          label={`${project.sessions}세션 · ${Math.floor(project.minutes / 60)}시간 ${
+                            project.minutes % 60
+                          }분`}
+                          color="primary"
+                          size="small"
+                        />
+                      </Box>
+                      <List dense>
+                        {project.tasks.map((task) => (
+                          <ListItem key={task.taskId} sx={{ pl: 2 }}>
+                            <ListItemText
+                              primary={
+                                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                  <Typography variant="body2">✅ {task.taskTitle}</Typography>
+                                  <Typography variant="caption" color="text.secondary">
+                                    {task.sessions}세션 · {Math.floor(task.minutes / 60)}시간 {task.minutes % 60}분
+                                  </Typography>
+                                </Box>
+                              }
+                            />
+                          </ListItem>
+                        ))}
+                      </List>
+                    </Box>
+                  ))}
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* 일별 진행상황 */}
+            <Grid item xs={12}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" fontWeight="bold" gutterBottom>
+                    📅 일별 진행상황
+                  </Typography>
+                  <Grid container spacing={2}>
+                    {pomodoroStats.dailyBreakdown.map((day) => (
+                      <Grid item xs={12} sm={6} md={3} key={day.date}>
+                        <Box sx={{ p: 2, bgcolor: "primary.50", borderRadius: 2, textAlign: "center" }}>
+                          <Typography variant="body2" fontWeight="bold">
+                            {dayjs(day.date).format("M/D (dd)")}
+                          </Typography>
+                          <Typography variant="h6" color="primary">
+                            {day.sessions}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            세션 · {Math.floor(day.minutes / 60)}시간 {day.minutes % 60}분
+                          </Typography>
+                        </Box>
+                      </Grid>
+                    ))}
+                  </Grid>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+        ) : (
+          <Card>
+            <CardContent sx={{ textAlign: "center", py: 6 }}>
+              <Timer sx={{ fontSize: 64, color: "grey.400", mb: 2 }} />
+              <Typography variant="h6" color="text.secondary" gutterBottom>
+                이번 주 뽀모도로 기록이 없습니다
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                펭귄 뽀모도로에서 집중 세션을 시작해보세요! 🐧
+              </Typography>
+            </CardContent>
+          </Card>
+        )}
+      </Box>
+
+      {/* ❄️ 컨디션 분석 섹션 */}
+      <Box sx={{ mb: 3 }}>
+        <Typography
+          variant="h5"
+          fontWeight="bold"
+          gutterBottom
+          sx={{
+            background: "linear-gradient(45deg, #667eea 30%, #764ba2 90%)",
+            backgroundClip: "text",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+          }}
+        >
+          ❄️ 컨디션 분석
         </Typography>
       </Box>
 

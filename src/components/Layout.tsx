@@ -30,6 +30,13 @@ import {
   MoreVert,
   Menu as MenuIcon,
   ChevronLeft,
+  Home as HomeIcon,
+  LocalHospital as HealthIcon,
+  Explore as ExploreIcon,
+  Forum as ForumIcon,
+  AdminPanelSettings as AdminIcon,
+  AcUnit as IceIcon,
+  Timer as TimerIcon,
 } from "@mui/icons-material";
 import { useLocation, useNavigate } from "react-router-dom";
 import { User } from "firebase/auth";
@@ -74,70 +81,86 @@ const Layout: React.FC<LayoutProps> = ({ children, user }) => {
 
   const menuItems = [
     {
-      text: "홈",
-      icon: <DashboardIcon />,
+      text: "빙하 기지",
+      icon: <HomeIcon />,
       path: "/",
-      emoji: "🐧",
+      emoji: "🏔️",
       color: theme.palette.primary.main,
+      description: "펭귄 비서의 메인 대시보드",
     },
     {
-      text: "컨디션",
-      icon: <HeartIcon />,
+      text: "빙하 건강",
+      icon: <HealthIcon />,
       path: "/condition",
-      emoji: "🐟",
+      emoji: "🐧",
       color: theme.palette.success.main,
+      description: "건강 상태 추적 및 관리",
     },
     {
-      text: "분석",
+      text: "빙하 분석",
       icon: <AnalyticsIcon />,
       path: "/analytics",
-      emoji: "❄️",
+      emoji: "📊",
       color: theme.palette.info.main,
+      description: "데이터 분석 및 인사이트",
     },
     {
-      text: "프로필",
+      text: "펭귄 프로필",
       icon: <PersonIcon />,
       path: "/profile",
-      emoji: "🐻‍❄️",
-      color: theme.palette.secondary.main,
-    },
-    {
-      text: "프로젝트",
-      icon: <ProjectIcon />,
-      path: "/projects",
-      emoji: "🏔️",
-      color: theme.palette.warning.main,
-    },
-    {
-      text: "채팅",
-      icon: <ChatIcon />,
-      path: "/chat",
       emoji: "🐧",
-      color: theme.palette.primary.dark,
+      color: theme.palette.secondary.main,
+      description: "개인 정보 및 설정",
     },
+    {
+      text: "빙하 탐험",
+      icon: <ExploreIcon />,
+      path: "/projects",
+      emoji: "🗺️",
+      color: theme.palette.warning.main,
+      description: "프로젝트 관리 및 추적",
+    },
+    {
+      text: "펭귄 뽀모도로",
+      icon: <TimerIcon />,
+      path: "/pomodoro",
+      emoji: "🍅",
+      color: theme.palette.success.main,
+      description: "집중 타이머로 생산성 향상",
+    },
+    // {
+    //   text: "펭귄 소통",
+    //   icon: <ForumIcon />,
+    //   path: "/chat",
+    //   emoji: "💬",
+    //   color: theme.palette.primary.dark,
+    //   description: "AI와 대화하기",
+    // },
     ...(isUserAdmin
       ? [
           {
-            text: "관리자",
-            icon: <PersonIcon />,
+            text: "빙하 관리소",
+            icon: <AdminIcon />,
             path: "/admin",
-            emoji: "🐻‍❄️",
+            emoji: "🏛️",
             color: theme.palette.error.main,
+            description: "관리자 전용 패널",
           },
         ]
       : []),
     {
-      text: "설정",
-      icon: <SettingsIcon />,
+      text: "빙하 설정",
+      icon: <IceIcon />,
       path: "/settings",
-      emoji: "⚙️",
+      emoji: "❄️",
       color: theme.palette.grey[600],
+      description: "앱 설정 및 환경설정",
     },
   ];
 
   const getCurrentPageTitle = () => {
     const currentItem = menuItems.find((item) => item.path === location.pathname);
-    return currentItem ? `${currentItem.emoji} ${currentItem.text}` : "개인 비서";
+    return currentItem ? `${currentItem.emoji} ${currentItem.text}` : "🐧 펭귄 비서";
   };
 
   const handleMenuClick = (event: React.MouseEvent<HTMLElement>) => {
