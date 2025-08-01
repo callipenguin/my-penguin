@@ -172,6 +172,8 @@ const Pomodoro: React.FC = () => {
             },
             isActive: currentIsActive,
             currentTrailCount: penguinTrail.length,
+            펭귄높이: currentPos.y.toFixed(2),
+            궤적예상높이: (1.0).toFixed(2),
           });
 
           setPenguinTrail((prev) => {
@@ -318,14 +320,24 @@ const Pomodoro: React.FC = () => {
     rendererRef.current = renderer;
     mountRef.current.appendChild(renderer.domElement);
 
-    // 조명 강화
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.0); // 더 밝게
+    // 조명 강화 (궤적 가시성 개선)
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.2); // 1.0 → 1.2 더 밝게
     scene.add(ambientLight);
 
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8); // 더 밝게
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0); // 0.8 → 1.0 더 밝게
     directionalLight.position.set(5, 8, 5);
     directionalLight.castShadow = true;
     scene.add(directionalLight);
+
+    // 🔥 궤적 전용 추가 조명 (위에서 비추는 조명)
+    const topLight = new THREE.DirectionalLight(0x00ffff, 0.5); // 사이안 색 조명
+    topLight.position.set(0, 10, 0); // 위에서 수직으로
+    scene.add(topLight);
+
+    // 🌟 포인트 라이트 추가 (중앙에서 발산)
+    const centerLight = new THREE.PointLight(0xffffff, 1.0, 20);
+    centerLight.position.set(0, 5, 0);
+    scene.add(centerLight);
 
     // 원형 빙하 플랫폼 생성 (더 화려하게)
     const iceGeometry = new THREE.CylinderGeometry(8, 8, 0.5, 32);
@@ -477,7 +489,7 @@ const Pomodoro: React.FC = () => {
     return penguinGroup;
   };
 
-  // 궤적 업데이트 함수 (더 화려하고 확실하게)
+  // 궤적 업데이트 함수 (가시성 최대한 강화!)
   const updateTrail = () => {
     if (!trailGroupRef.current) {
       console.log("❌ trailGroupRef가 없어요!");
@@ -497,37 +509,51 @@ const Pomodoro: React.FC = () => {
 
     console.log(`🎨 궤적 렌더링 중: ${penguinTrail.length}개 점`);
 
-    // 새로운 궤적 추가 (더 화려하고 확실하게)
+    // 새로운 궤적 추가 (가시성 최대 강화!)
     penguinTrail.forEach((point, index) => {
       const age = (Date.now() - point.time) / 1000; // 초 단위
-      const opacity = Math.max(0.2, 1 - age / 30); // 최소 0.2 투명도 유지
-      const scale = Math.max(0.5, 1 - age / 30); // 최소 0.5 크기 유지
+      const opacity = Math.max(0.4, 1 - age / 30); // 최소 0.4 투명도 (더 진하게)
+      const scale = Math.max(0.7, 1 - age / 30); // 최소 0.7 크기 (더 크게)
 
-      // 더 크고 밝은 궤적 점
-      const trailGeometry = new THREE.SphereGeometry(0.15 * scale, 12, 12); // 크기 2배 증가
+      // 📈 궤적 크기 3배 증가 + 높이 대폭 상승!
+      const trailGeometry = new THREE.SphereGeometry(0.25 * scale, 16, 16); // 0.15 → 0.25 (크기 대폭 증가)
       const trailMaterial = new THREE.MeshStandardMaterial({
-        color: 0x00ffff, // 더 밝은 사이안 색상
+        color: 0x00ffff, // 밝은 사이안
         transparent: true,
         opacity: opacity,
-        emissive: 0x00ffff, // 스스로 빛나도록
-        emissiveIntensity: 0.6 * opacity, // 더 강한 발광
-        metalness: 0.1,
-        roughness: 0.1,
+        emissive: 0x00ffff, // 스스로 빛나게
+        emissiveIntensity: 0.8 * opacity, // 더 강한 발광 (0.6 → 0.8)
+        metalness: 0.0, // 메탈 제거로 더 밝게
+        roughness: 0.0, // 러프니스 제거로 매끈하게
       });
 
       const trailPoint = new THREE.Mesh(trailGeometry, trailMaterial);
-      trailPoint.position.set(point.x, 0.2, point.z); // 더 높게 배치
 
-      // 궤적 점이 약간 반짝이도록
-      const sparkleTime = Date.now() * 0.005;
-      trailPoint.scale.setScalar(1 + Math.sin(sparkleTime + index) * 0.2);
+      // 🚀 높이 대폭 상승! (빙하 위 확실히 보이게)
+      trailPoint.position.set(point.x, 1.0 + index * 0.05, point.z); // 0.2 → 1.0 + 계단식
+
+      // 궤적 점이 크게 반짝이도록
+      const sparkleTime = Date.now() * 0.008; // 더 빠른 반짝임
+      const sparkleScale = 1 + Math.sin(sparkleTime + index) * 0.4; // 더 큰 반짝임
+      trailPoint.scale.setScalar(sparkleScale);
+
+      // 🔥 추가 발광 효과 - 작은 후광 추가
+      const glowGeometry = new THREE.SphereGeometry(0.35 * scale, 8, 8);
+      const glowMaterial = new THREE.MeshBasicMaterial({
+        color: 0x00ffff,
+        transparent: true,
+        opacity: opacity * 0.3, // 반투명 후광
+      });
+      const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
+      glowMesh.position.copy(trailPoint.position);
 
       if (trailGroupRef.current) {
         trailGroupRef.current.add(trailPoint);
+        trailGroupRef.current.add(glowMesh); // 후광도 추가
       }
     });
 
-    console.log(`✨ 궤적 렌더링 완료: ${trailGroupRef.current.children.length}개 점 표시됨`);
+    console.log(`✨ 궤적 렌더링 완료: ${trailGroupRef.current.children.length}개 오브젝트 표시됨 (점 + 후광)`);
   };
 
   const animate = () => {
