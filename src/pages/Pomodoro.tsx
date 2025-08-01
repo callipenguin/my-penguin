@@ -45,6 +45,7 @@ const Pomodoro: React.FC = () => {
   const penguinProgressRef = useRef(0);
   const timeRef = useRef(25 * 60);
   const penguinTrailRef = useRef<Array<{ x: number; y: number; z: number; time: number }>>([]);
+  const lastSectorRef = useRef(-1); // 30도 구간 추적을 위한 ref
 
   // 뽀모도로 상태
   const [isActive, setIsActive] = useState(false);
@@ -123,102 +124,15 @@ const Pomodoro: React.FC = () => {
     };
   }, []);
 
-  // 궤적 업데이트 (1초마다) - 강화된 버전
+  // 물고기 시스템 초기화 (30도마다 각도 기반으로 처리)
   useEffect(() => {
-    // 펭귄과 씬이 준비될 때까지 기다리기
-    const startTrailSystem = () => {
-      if (!penguinRef.current || !sceneRef.current) {
-        console.log("⏳ 펭귄이나 씬이 아직 준비되지 않음. 1초 후 재시도...");
-        setTimeout(startTrailSystem, 1000);
-        return;
-      }
+    // 간단한 초기화만 수행
+    console.log("🎣 30도 기반 물고기 시스템 준비 완료!");
 
-      console.log("🎣 물고기 던지기 시스템 시작! 펭귄 위치:", penguinRef.current.position);
-
-      // 물고기 던지기 시스템 (5초마다)
-      const interval = setInterval(() => {
-        if (penguinRef.current && sceneRef.current) {
-          // 🎯 시작 버튼 누른 후에만 물고기 던지기!
-          const currentIsActive = isActiveRef.current;
-          if (!currentIsActive) {
-            console.log("⏸️ 타이머 정지 중 - 물고기 던지기 안함");
-            return;
-          }
-
-          const currentPos = penguinRef.current.position;
-
-          // 위치가 유효한지 확인
-          if (isNaN(currentPos.x) || isNaN(currentPos.y) || isNaN(currentPos.z)) {
-            console.log("❌ 펭귄 위치가 유효하지 않음:", currentPos);
-            return;
-          }
-
-          // 🐟 펭귄이 물고기를 밟고 있는지 체크 (1.0 반경 내)
-          const currentTrails = penguinTrailRef.current;
-          const stompThreshold = 1.0; // 밟기 감지 범위
-
-          const stompedFishIndex = currentTrails.findIndex((trail) => {
-            const distance = Math.sqrt(Math.pow(trail.x - currentPos.x, 2) + Math.pow(trail.z - currentPos.z, 2));
-            return distance < stompThreshold;
-          });
-
-          if (stompedFishIndex !== -1) {
-            // 🦶 펭귄이 물고기를 밟았다! 물고기 사라짐
-            console.log("🦶 펭귄이 물고기를 밟았어요!", {
-              밟힌물고기위치: {
-                x: currentTrails[stompedFishIndex].x.toFixed(2),
-                z: currentTrails[stompedFishIndex].z.toFixed(2),
-              },
-              펭귄위치: { x: currentPos.x.toFixed(2), z: currentPos.z.toFixed(2) },
-            });
-
-            setPenguinTrail((prev) => {
-              const updated = prev.filter((_, index) => index !== stompedFishIndex);
-              penguinTrailRef.current = updated;
-              return updated;
-            });
-          } else {
-            // 🎣 펭귄이 새로운 물고기를 던집니다!
-            const newFish = {
-              x: currentPos.x,
-              y: currentPos.y,
-              z: currentPos.z,
-              time: Date.now(),
-            };
-
-            console.log("🎣 펭귄이 물고기를 던졌어요!", {
-              위치: {
-                x: currentPos.x.toFixed(2),
-                y: currentPos.y.toFixed(2),
-                z: currentPos.z.toFixed(2),
-              },
-              현재물고기수: penguinTrailRef.current.length,
-            });
-
-            setPenguinTrail((prev) => {
-              const updated = [...prev, newFish];
-              // 오래된 물고기 제거 (60초 이상)
-              const cutoffTime = Date.now() - 60000;
-              const filtered = updated.filter((point) => point.time > cutoffTime);
-
-              penguinTrailRef.current = filtered;
-              return filtered;
-            });
-          }
-        }
-      }, 5000); // 5초마다 실행
-
-      return () => {
-        console.log("🛑 물고기 던지기 시스템 정리");
-        clearInterval(interval);
-      };
+    return () => {
+      console.log("🛑 물고기 시스템 정리");
     };
-
-    // 시스템 시작
-    const cleanup = startTrailSystem();
-
-    return cleanup;
-  }, []); // 한 번만 실행, ref로 최신 상태 참조
+  }, []); // 한 번만 실행
 
   // 타이머 효과
   useEffect(() => {
@@ -664,6 +578,73 @@ const Pomodoro: React.FC = () => {
       const directionAngle = angle + Math.PI / 2;
       penguinRef.current.rotation.y = directionAngle;
 
+      // 🐟 30도마다 물고기 처리 (각도 기반)
+      if (currentIsActive) {
+        const degrees = ((angle * 180) / Math.PI) % 360; // 라디안을 도로 변환
+        const currentSector = Math.floor(degrees / 30); // 30도 단위 구간 (0~11)
+
+        if (currentSector !== lastSectorRef.current) {
+          lastSectorRef.current = currentSector;
+
+          const currentPos = penguinRef.current.position;
+
+          // 🐟 현재 위치 근처에 물고기가 있는지 체크 (1.0 반경)
+          const currentTrails = penguinTrailRef.current;
+          const toggleThreshold = 1.0;
+
+          const nearbyFishIndex = currentTrails.findIndex((trail) => {
+            const distance = Math.sqrt(Math.pow(trail.x - currentPos.x, 2) + Math.pow(trail.z - currentPos.z, 2));
+            return distance < toggleThreshold;
+          });
+
+          if (nearbyFishIndex !== -1) {
+            // 🗑️ 근처에 물고기가 있으면 수거!
+            console.log(`🗑️ ${currentSector * 30}도 구간에서 물고기 수거!`, {
+              구간: `${currentSector * 30}도-${(currentSector + 1) * 30}도`,
+              물고기위치: {
+                x: currentTrails[nearbyFishIndex].x.toFixed(2),
+                z: currentTrails[nearbyFishIndex].z.toFixed(2),
+              },
+              펭귄위치: { x: currentPos.x.toFixed(2), z: currentPos.z.toFixed(2) },
+            });
+
+            setPenguinTrail((prev) => {
+              const updated = prev.filter((_, index) => index !== nearbyFishIndex);
+              penguinTrailRef.current = updated;
+              return updated;
+            });
+          } else {
+            // 🎣 물고기가 없으면 새로 뿌리기!
+            const newFish = {
+              x: currentPos.x,
+              y: currentPos.y,
+              z: currentPos.z,
+              time: Date.now(),
+            };
+
+            console.log(`🎣 ${currentSector * 30}도 구간에서 물고기 뿌리기!`, {
+              구간: `${currentSector * 30}도-${(currentSector + 1) * 30}도`,
+              위치: {
+                x: currentPos.x.toFixed(2),
+                y: currentPos.y.toFixed(2),
+                z: currentPos.z.toFixed(2),
+              },
+              현재물고기수: penguinTrailRef.current.length,
+            });
+
+            setPenguinTrail((prev) => {
+              const updated = [...prev, newFish];
+              // 오래된 물고기 제거 (60초 이상)
+              const cutoffTime = Date.now() - 60000;
+              const filtered = updated.filter((point) => point.time > cutoffTime);
+
+              penguinTrailRef.current = filtered;
+              return filtered;
+            });
+          }
+        }
+      }
+
       // 걷기 애니메이션 (항상!)
       const walkTilt = Math.sin(animTime) * (currentIsActive ? 0.3 : 0.15); // 활성화 시 더 큰 흔들림
       penguinRef.current.rotation.z = walkTilt;
@@ -754,8 +735,9 @@ const Pomodoro: React.FC = () => {
     setSessionStartTime(null);
     setPenguinTrail([]); // 물고기도 초기화
     penguinTrailRef.current = []; // ref도 초기화
+    lastSectorRef.current = -1; // 구간 추적도 초기화
 
-    console.log("🔄 resetTimer 완료! 모든 상태 + 물고기 초기화!");
+    console.log("🔄 resetTimer 완료! 모든 상태 + 물고기 + 구간 추적 초기화!");
   };
 
   const handleTimerComplete = async () => {
@@ -1083,15 +1065,15 @@ const Pomodoro: React.FC = () => {
               <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", mt: 2 }}>
                 {isActive ? (
                   <>
-                    🎣 펭귄이 5초마다 물고기를 던지고 있어요! <br />
+                    🎯 펭귄이 30도 돌 때마다 물고기를 뿌리거나 수거해요! <br />
                     🐟 물고기들이 빙하 위를 헤엄치며 집중을 도와줘요! <br />⏰ {Math.floor(time / 60)}분 {time % 60}초
                     남았어요!
                   </>
                 ) : (
                   <>
                     🐧 펭귄이 천천히 빙하를 돌며 대기 중이에요! <br />
-                    ▶️ 타이머 시작하면 5초마다 물고기를 던져요! <br />
-                    🦶 펭귄이 물고기를 밟으면 물고기가 사라져요!
+                    ▶️ 타이머 시작하면 30도마다 물고기를 뿌려요! <br />
+                    🔄 물고기가 있으면 수거하고, 없으면 새로 뿌려요!
                   </>
                 )}
               </Typography>
