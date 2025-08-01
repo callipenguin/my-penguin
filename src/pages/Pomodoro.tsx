@@ -40,9 +40,10 @@ const Pomodoro: React.FC = () => {
   const animationIdRef = useRef<number>();
   const trailGroupRef = useRef<THREE.Group>(); // 궤적을 위한 그룹
 
-  // 🔧 isActive 상태 참조 문제 해결을 위한 ref
+  // 🔧 상태 동기화 문제 해결을 위한 ref들
   const isActiveRef = useRef(false);
   const penguinProgressRef = useRef(0);
+  const timeRef = useRef(25 * 60);
 
   // 뽀모도로 상태
   const [isActive, setIsActive] = useState(false);
@@ -70,15 +71,19 @@ const Pomodoro: React.FC = () => {
     duration: number;
   } | null>(null);
 
-  // 🔧 ref 상태 동기화
+  // 🔧 ref 상태 실시간 동기화
   useEffect(() => {
     isActiveRef.current = isActive;
-    console.log("🔄 isActive 상태 업데이트:", isActive);
+    console.log("🔄 isActiveRef 업데이트:", isActive);
   }, [isActive]);
 
   useEffect(() => {
     penguinProgressRef.current = penguinProgress;
   }, [penguinProgress]);
+
+  useEffect(() => {
+    timeRef.current = time;
+  }, [time]);
 
   useEffect(() => {
     loadProjects();
@@ -129,15 +134,18 @@ const Pomodoro: React.FC = () => {
 
       console.log("🚀 궤적 시스템 시작! 펭귄 위치:", penguinRef.current.position);
 
-      // 궤적 생성 (타이머 상태에 따라 빈도 조절)
+      // 궤적 생성 (REF 기반으로 최신 상태 참조)
       const interval = setInterval(() => {
         if (penguinRef.current && sceneRef.current) {
+          // 🔧 ref로 최신 상태 참조!
+          const currentIsActive = isActiveRef.current;
+
           // 🔧 해결책: 항상 궤적 생성하되 빈도 조절!
-          const trailInterval = isActive ? 1000 : 3000; // 활성화: 1초마다, 비활성화: 3초마다
+          const trailInterval = currentIsActive ? 1000 : 3000; // 활성화: 1초마다, 비활성화: 3초마다
 
           console.log("✨ 궤적 생성 상태:", {
-            isActive: isActive,
-            interval: isActive ? "1초" : "3초",
+            isActive: currentIsActive,
+            interval: currentIsActive ? "1초" : "3초",
             currentTrailCount: penguinTrail.length,
           });
 
@@ -156,13 +164,13 @@ const Pomodoro: React.FC = () => {
             time: Date.now(),
           };
 
-          console.log("✨ 새로운 궤적 추가:", {
+          console.log("✨ 새로운 궤적 추가 (REF):", {
             position: {
               x: currentPos.x.toFixed(2),
               y: currentPos.y.toFixed(2),
               z: currentPos.z.toFixed(2),
             },
-            isActive: isActive,
+            isActive: currentIsActive,
             currentTrailCount: penguinTrail.length,
           });
 
@@ -176,7 +184,7 @@ const Pomodoro: React.FC = () => {
               console.log("🗑️ 오래된 궤적 제거:", updated.length - filtered.length, "개");
             }
 
-            console.log("📊 궤적 상태 업데이트:", {
+            console.log("📊 궤적 상태 업데이트 (REF):", {
               이전: prev.length,
               추가후: updated.length,
               정리후: filtered.length,
@@ -187,7 +195,7 @@ const Pomodoro: React.FC = () => {
         } else {
           console.log("❌ 펭귄 ref가 없어요! penguinRef:", !!penguinRef.current, "sceneRef:", !!sceneRef.current);
         }
-      }, 1000); // 일단 1초 고정, 나중에 동적으로 변경 가능
+      }, 1000); // 1초마다 궤적 생성 (고정)
 
       return () => {
         console.log("🛑 궤적 시스템 정리");
@@ -199,7 +207,7 @@ const Pomodoro: React.FC = () => {
     const cleanup = startTrailSystem();
 
     return cleanup;
-  }, [isActive]); // isActive 상태 변경 시 궤적 시스템 재시작
+  }, []); // 한 번만 실행, ref로 최신 상태 참조
 
   // 타이머 효과
   useEffect(() => {
@@ -528,22 +536,26 @@ const Pomodoro: React.FC = () => {
     if (penguinRef.current && sceneRef.current && rendererRef.current && cameraRef.current) {
       const currentTime = Date.now() * 0.001; // 초 단위
 
-      // 🔧 강력한 디버깅 - 항상 상태 추적
+      // 🔧 ref를 사용해서 최신 상태 참조!
+      const currentIsActive = isActiveRef.current;
+      const currentProgress = penguinProgressRef.current;
+
+      // 강력한 디버깅 - 항상 상태 추적
       if (Math.random() < 0.1) {
         // 10% 확률로 로그
-        console.log("🔍 실시간 상태 추적:", {
-          isActive: isActive,
-          penguinProgress: penguinProgress,
-          time: time,
+        console.log("🔍 실시간 상태 추적 (REF):", {
+          isActive: currentIsActive,
+          penguinProgress: currentProgress,
+          time: timeRef.current,
           currentTime: currentTime.toFixed(2),
         });
       }
 
-      // 🎯 해결책: 항상 움직이되 속도만 조절!
-      const progress = penguinProgress / 100;
+      // 해결책: 항상 움직이되 속도만 조절!
+      const progress = currentProgress / 100;
 
       // 타이머 상태에 따라 속도 조절 (항상 움직임!)
-      const timeSpeed = isActive ? 0.5 : 0.1; // 빠름 vs 느림
+      const timeSpeed = currentIsActive ? 0.5 : 0.1; // 빠름 vs 느림
       const timeBasedRotation = currentTime * timeSpeed;
 
       // 원형 경로 계산 (항상 실행!)
@@ -557,7 +569,7 @@ const Pomodoro: React.FC = () => {
       penguinRef.current.position.z = targetZ;
 
       // 강화된 걷기 애니메이션 (항상!)
-      const animSpeed = isActive ? 8 : 4; // 활성화 시 더 빠른 애니메이션
+      const animSpeed = currentIsActive ? 8 : 4; // 활성화 시 더 빠른 애니메이션
       const animTime = currentTime * animSpeed;
       const walkBounce = Math.abs(Math.sin(animTime)) * 0.15;
 
@@ -565,7 +577,7 @@ const Pomodoro: React.FC = () => {
       const jumpPhase = (animTime * 2) % (Math.PI * 1.2);
       let jumpHeight = 0;
       if (jumpPhase < Math.PI * 0.8) {
-        jumpHeight = Math.sin(jumpPhase / 0.8) * (isActive ? 1.5 : 0.8); // 활성화 시 더 높은 점프
+        jumpHeight = Math.sin(jumpPhase / 0.8) * (currentIsActive ? 1.5 : 0.8); // 활성화 시 더 높은 점프
       }
 
       // 총 높이 (항상!)
@@ -576,7 +588,7 @@ const Pomodoro: React.FC = () => {
       penguinRef.current.rotation.y = directionAngle;
 
       // 걷기 애니메이션 (항상!)
-      const walkTilt = Math.sin(animTime) * (isActive ? 0.3 : 0.15); // 활성화 시 더 큰 흔들림
+      const walkTilt = Math.sin(animTime) * (currentIsActive ? 0.3 : 0.15); // 활성화 시 더 큰 흔들림
       penguinRef.current.rotation.z = walkTilt;
 
       // 점프 효과 (항상!)
@@ -590,14 +602,14 @@ const Pomodoro: React.FC = () => {
       // 매번 움직임 상태 로그
       if (Math.random() < 0.05) {
         // 5% 확률로 위치 로그
-        console.log("🐧 펭귄 움직임 확인:", {
+        console.log("🐧 펭귄 움직임 확인 (REF):", {
           position: {
             x: targetX.toFixed(2),
             z: targetZ.toFixed(2),
             y: penguinRef.current.position.y.toFixed(2),
           },
           angle: angle.toFixed(2),
-          isActive: isActive,
+          isActive: currentIsActive,
           timeSpeed: timeSpeed,
         });
       }
@@ -991,9 +1003,19 @@ const Pomodoro: React.FC = () => {
                 }}
               />
               <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", mt: 2 }}>
-                🐧 펭귄이 시작 버튼을 기다리며 대기 중이에요! <br />
-                ▶️ 타이머 시작하면 빙하를 빠르게 돌며 청록색 궤적을 남겨요! <br />✨ 궤적은 1초마다 생성되고 30초 후
-                자연스럽게 사라져요!
+                {isActive ? (
+                  <>
+                    🚀 펭귄이 빠르게 빙하를 돌며 집중 중이에요! <br />
+                    ✨ 밝은 사이안 궤적이 1초마다 생성되고 있어요! <br />⏰ {Math.floor(time / 60)}분 {time % 60}초
+                    남았어요!
+                  </>
+                ) : (
+                  <>
+                    🐧 펭귄이 천천히 빙하를 돌며 대기 중이에요! <br />
+                    ▶️ 타이머 시작하면 빠르게 돌며 청록색 궤적을 남겨요! <br />✨ 궤적은 1초마다 생성되고 30초 후
+                    자연스럽게 사라져요!
+                  </>
+                )}
               </Typography>
             </CardContent>
           </Card>
