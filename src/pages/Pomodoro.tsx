@@ -307,10 +307,10 @@ const Pomodoro: React.FC = () => {
     const width = mountRef.current.clientWidth;
     const height = Math.min(400, width * 0.6);
 
-    // 카메라 생성 (더 가까이, 측면에서 보도록)
+    // 카메라 생성 (더 높고 멀리에서 전체 뷰)
     const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
-    camera.position.set(3, 6, 10); // 약간 측면에서 보도록 조정
-    camera.lookAt(0, 0, 0);
+    camera.position.set(5, 10, 15); // 더 높고 멀리서 보도록 조정
+    camera.lookAt(0, 2, 0); // 조금 더 위쪽을 보도록
     cameraRef.current = camera;
 
     // 렌더러 생성 (동적 크기)
@@ -515,13 +515,13 @@ const Pomodoro: React.FC = () => {
       const opacity = Math.max(0.4, 1 - age / 30); // 최소 0.4 투명도 (더 진하게)
       const scale = Math.max(0.7, 1 - age / 30); // 최소 0.7 크기 (더 크게)
 
-      // 📈 궤적 크기 3배 증가 + 높이 대폭 상승!
-      const trailGeometry = new THREE.SphereGeometry(0.25 * scale, 16, 16); // 0.15 → 0.25 (크기 대폭 증가)
+      // 📈 궤적 크기 4배 증가! (확실히 보이게)
+      const trailGeometry = new THREE.SphereGeometry(0.4 * scale, 16, 16); // 0.25 → 0.4 (더욱 크게!)
       const trailMaterial = new THREE.MeshStandardMaterial({
-        color: 0x00ffff, // 밝은 사이안
+        color: 0xff0000, // 빨간색 궤적
         transparent: true,
         opacity: opacity,
-        emissive: 0x00ffff, // 스스로 빛나게
+        emissive: 0xff0000, // 스스로 빛나게
         emissiveIntensity: 0.8 * opacity, // 더 강한 발광 (0.6 → 0.8)
         metalness: 0.0, // 메탈 제거로 더 밝게
         roughness: 0.0, // 러프니스 제거로 매끈하게
@@ -529,8 +529,8 @@ const Pomodoro: React.FC = () => {
 
       const trailPoint = new THREE.Mesh(trailGeometry, trailMaterial);
 
-      // 🚀 높이 대폭 상승! (빙하 위 확실히 보이게)
-      trailPoint.position.set(point.x, 1.0 + index * 0.05, point.z); // 0.2 → 1.0 + 계단식
+      // 🚀 높이 조정! (펭귄과 비슷한 높이로)
+      trailPoint.position.set(point.x, 0.5 + index * 0.1, point.z); // 1.0 → 0.5 (펭귄 근처)
 
       // 궤적 점이 크게 반짝이도록
       const sparkleTime = Date.now() * 0.008; // 더 빠른 반짝임
@@ -540,7 +540,7 @@ const Pomodoro: React.FC = () => {
       // 🔥 추가 발광 효과 - 작은 후광 추가
       const glowGeometry = new THREE.SphereGeometry(0.35 * scale, 8, 8);
       const glowMaterial = new THREE.MeshBasicMaterial({
-        color: 0x00ffff,
+        color: 0xff0000, // 빨간색 후광
         transparent: true,
         opacity: opacity * 0.3, // 반투명 후광
       });
@@ -550,6 +550,19 @@ const Pomodoro: React.FC = () => {
       if (trailGroupRef.current) {
         trailGroupRef.current.add(trailPoint);
         trailGroupRef.current.add(glowMesh); // 후광도 추가
+
+        // 🔍 궤적 위치 디버깅
+        console.log(`🎯 궤적 ${index} 생성:`, {
+          원래위치: { x: point.x.toFixed(2), y: point.y.toFixed(2), z: point.z.toFixed(2) },
+          실제위치: {
+            x: trailPoint.position.x.toFixed(2),
+            y: trailPoint.position.y.toFixed(2),
+            z: trailPoint.position.z.toFixed(2),
+          },
+          크기: (0.4 * scale).toFixed(2),
+          투명도: opacity.toFixed(2),
+          카메라위치: "5,10,15",
+        });
       }
     });
 
