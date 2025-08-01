@@ -375,6 +375,27 @@ const Pomodoro: React.FC = () => {
     penguinRef.current = penguin;
     scene.add(penguin);
 
+    // 🧪 테스트용 고정 빨간 구체 (렌더링 테스트)
+    const testGeometry = new THREE.SphereGeometry(0.5, 16, 16);
+    const testMaterial = new THREE.MeshBasicMaterial({
+      color: 0xff0000,
+      transparent: false,
+    });
+    const testSphere = new THREE.Mesh(testGeometry, testMaterial);
+    testSphere.position.set(4, 2, 2); // 펭귄 근처 높은 곳
+    scene.add(testSphere);
+    console.log("🧪 테스트 구체 추가됨! 위치:", testSphere.position);
+
+    // 🧪 테스트용 두 번째 구체 (다른 위치)
+    const testGeometry2 = new THREE.SphereGeometry(0.3, 16, 16);
+    const testMaterial2 = new THREE.MeshBasicMaterial({
+      color: 0x00ff00, // 초록색
+    });
+    const testSphere2 = new THREE.Mesh(testGeometry2, testMaterial2);
+    testSphere2.position.set(-4, 1, -2); // 반대편
+    scene.add(testSphere2);
+    console.log("🧪 테스트 구체2 추가됨! 위치:", testSphere2.position);
+
     console.log("🐧 Three.js 초기화 완료! 펭귄 위치:", penguin.position);
 
     animate();
@@ -567,6 +588,26 @@ const Pomodoro: React.FC = () => {
     });
 
     console.log(`✨ 궤적 렌더링 완료: ${trailGroupRef.current.children.length}개 오브젝트 표시됨 (점 + 후광)`);
+
+    // 🔍 트레일 그룹 상세 디버깅
+    console.log("🔍 TrailGroup 상태:", {
+      존재여부: !!trailGroupRef.current,
+      자식수: trailGroupRef.current?.children.length || 0,
+      씬에포함됨: sceneRef.current?.children.includes(trailGroupRef.current!) || false,
+      전체씬자식수: sceneRef.current?.children.length || 0,
+    });
+
+    // 각 자식 오브젝트 상태 확인
+    if (trailGroupRef.current && trailGroupRef.current.children.length > 0) {
+      trailGroupRef.current.children.forEach((child, index) => {
+        console.log(`🎯 TrailGroup 자식 ${index}:`, {
+          타입: child.type,
+          위치: `(${child.position.x.toFixed(2)}, ${child.position.y.toFixed(2)}, ${child.position.z.toFixed(2)})`,
+          보임: child.visible,
+          불투명도: (child as any).material?.opacity || "N/A",
+        });
+      });
+    }
   };
 
   const animate = () => {
