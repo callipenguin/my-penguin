@@ -878,14 +878,14 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
               <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", mt: 2 }}>
                 {isActive ? (
                   <>
-                    🎯 {themeConfig?.concepts?.animal}이 원을 따라 여행하며 {themeGame.blocks.type}을 수집해요! <br />⏰{" "}
+                    🎯 원을 따라 여행하는 {themeConfig?.concepts?.animal}, {themeGame.blocks.type} 수집중! <br />⏰{" "}
                     {Math.floor(time / 60)}분 {time % 60}초 남았어요! 원이 모두 채워지면 완료! <br />
                     🔄 1분에 한바퀴씩 돌며 {filledBlocksCount}/60개 수집했어요!
                   </>
                 ) : (
                   <>
-                    {themeConfig?.emoji} {themeConfig?.concepts?.animal}이 출발을 기다리고 있어요! <br />
-                    ▶️ 타이머를 시작하면 원을 따라 여행하며 {themeGame.blocks.type}을 수집해요! <br />⭕ 원이 모두
+                    {themeConfig?.emoji} 출발을 기다리고 있는 {themeConfig?.concepts?.animal}! <br />
+                    ▶️ 타이머를 시작하면 원을 따라 여행하며 {themeGame.blocks.type} 수집 시작! <br />⭕ 원이 모두
                     채워지면 {selectedMinutes}분 집중 완료!
                   </>
                 )}

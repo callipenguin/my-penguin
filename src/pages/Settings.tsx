@@ -248,10 +248,10 @@ const Settings: React.FC<SettingsProps> = ({ onThemeChange, themeSettings, theme
       {/* 헤더 */}
       <Box sx={{ mb: 3 }}>
         <Typography variant={isMobile ? "h5" : "h4"} fontWeight="bold" gutterBottom>
-          ⚙️ 설정
+          ⚙️ {themeConfig?.concepts?.environment?.split(" ")[0] || "빙하"} 설정
         </Typography>
         <Typography variant="body1" color="textSecondary">
-          개인 비서 앱을 나에게 맞게 커스터마이징하세요
+          {themeConfig?.concepts?.animal || "펭귄"} 비서 앱을 나에게 맞게 커스터마이징하세요
         </Typography>
       </Box>
 

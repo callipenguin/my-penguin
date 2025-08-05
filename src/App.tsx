@@ -295,7 +295,7 @@ function App() {
                       />
                     }
                   />
-                  {isAdmin(user.email) && <Route path="/admin" element={<AdminPanel />} />}
+                  {isAdmin(user.email) && <Route path="/admin" element={<AdminPanel themeConfig={themeConfig} />} />}
                 </Routes>
               </Layout>
             </Box>

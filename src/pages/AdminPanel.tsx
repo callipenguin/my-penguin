@@ -40,6 +40,7 @@ import {
 } from "@mui/icons-material";
 import { getAccessRequests, updateAccessRequest, isAdmin, getCurrentUser } from "../utils/firebase";
 import dayjs from "dayjs";
+import { ThemeConfigExtended } from "../types";
 
 interface AccessRequest {
   id: string;
@@ -53,7 +54,11 @@ interface AccessRequest {
   adminNotes?: string;
 }
 
-const AdminPanel: React.FC = () => {
+interface AdminPanelProps {
+  themeConfig?: ThemeConfigExtended;
+}
+
+const AdminPanel: React.FC<AdminPanelProps> = ({ themeConfig }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [requests, setRequests] = useState<AccessRequest[]>([]);
@@ -113,8 +118,12 @@ const AdminPanel: React.FC = () => {
         // 성공 메시지 표시
         const message =
           actionType === "approve"
-            ? `✅ ${selectedRequest.displayName ?? selectedRequest.email}님이 빙하 기지에 입장할 수 있게 되었어요! 🎉`
-            : `❌ ${selectedRequest.displayName ?? selectedRequest.email}님의 빙하 기지 접근을 차단했어요.`;
+            ? `✅ ${selectedRequest.displayName ?? selectedRequest.email}님이 ${
+                themeConfig?.concepts?.environment?.split(" ")[0] || "빙하"
+              } 기지에 입장할 수 있게 되었어요! 🎉`
+            : `❌ ${selectedRequest.displayName ?? selectedRequest.email}님의 ${
+                themeConfig?.concepts?.environment?.split(" ")[0] || "빙하"
+              } 기지 접근을 차단했어요.`;
 
         setSnackbar({
           open: true,
@@ -176,18 +185,9 @@ const AdminPanel: React.FC = () => {
   if (!isUserAdmin) {
     return (
       <Box sx={{ p: 3, textAlign: "center" }}>
-        <Alert
-          severity="error"
-          sx={{
-            borderRadius: 3,
-            "& .MuiAlert-message": {
-              display: "flex",
-              alignItems: "center",
-              gap: 1,
-            },
-          }}
-        >
-          <AcUnit /> 빙하 관리소는 관리자만 접근할 수 있어요! 🐧
+        <Alert severity="error" sx={{ borderRadius: 3 }}>
+          <AcUnit /> {themeConfig?.concepts?.environment?.split(" ")[0] || "빙하"} 관리소는 관리자만 접근할 수 있어요!{" "}
+          {themeConfig?.emoji || "🐧"}
         </Alert>
       </Box>
     );
@@ -232,15 +232,29 @@ const AdminPanel: React.FC = () => {
           <CardContent sx={{ py: 4, position: "relative", zIndex: 1 }}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
               <AdminPanelSettings sx={{ fontSize: "2.5rem" }} />
-              <Typography variant={isMobile ? "h5" : "h4"} fontWeight="bold">
-                🏛️ 빙하 관리소
+              <Typography
+                variant={isMobile ? "h4" : "h3"}
+                fontWeight="bold"
+                sx={{
+                  background: "linear-gradient(45deg, #FF6B35 30%, #F7931E 90%)",
+                  backgroundClip: "text",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1,
+                }}
+              >
+                🏛️ {themeConfig?.concepts?.environment?.split(" ")[0] || "빙하"} 관리소
               </Typography>
             </Box>
             <Typography variant="h6" sx={{ opacity: 0.9, mb: 1 }}>
-              펭귄 비서 빙하 기지 접근 권한을 관리하세요
+              {themeConfig?.concepts?.animal || "펭귄"} 비서{" "}
+              {themeConfig?.concepts?.environment?.split(" ")[0] || "빙하"} 기지 접근 권한을 관리하세요
             </Typography>
             <Typography variant="body1" sx={{ opacity: 0.8 }}>
-              새로운 펭귄들의 입장 요청을 검토하고 승인해주세요 ❄️
+              새로운 {themeConfig?.concepts?.animal || "펭귄"}들의 입장 요청을 검토하고 승인해주세요{" "}
+              {themeConfig?.emoji || "❄️"}
             </Typography>
           </CardContent>
         </Card>
@@ -365,7 +379,8 @@ const AdminPanel: React.FC = () => {
             <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 3 }}>
               <Security color="primary" />
               <Typography variant="h6" fontWeight="bold">
-                🐧 빙하 기지 접근 요청 목록
+                {themeConfig?.emoji || "🐧"} {themeConfig?.concepts?.environment?.split(" ")[0] || "빙하"} 기지 접근
+                요청 목록
               </Typography>
             </Box>
 
@@ -373,10 +388,11 @@ const AdminPanel: React.FC = () => {
               <Box sx={{ textAlign: "center", py: 8 }}>
                 <Typography sx={{ fontSize: "4rem", mb: 2 }}>🏔️</Typography>
                 <Typography variant="h6" color="textSecondary" gutterBottom>
-                  아직 빙하 기지 접근 요청이 없어요
+                  아직 {themeConfig?.concepts?.environment?.split(" ")[0] || "빙하"} 기지 접근 요청이 없어요
                 </Typography>
                 <Typography variant="body2" color="textSecondary">
-                  새로운 펭귄들이 찾아오길 기다리고 있어요 ❄️
+                  새로운 {themeConfig?.concepts?.animal || "펭귄"}들이 찾아오길 기다리고 있어요{" "}
+                  {themeConfig?.emoji || "❄️"}
                 </Typography>
               </Box>
             ) : (
@@ -411,7 +427,7 @@ const AdminPanel: React.FC = () => {
                         primary={
                           <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 1 }}>
                             <Typography variant="subtitle1" fontWeight="bold">
-                              {request.displayName || "이름 없는 펭귄"}
+                              {request.displayName || `이름 없는 ${themeConfig?.concepts?.animal || "펭귄"}`}
                             </Typography>
                             <Chip
                               icon={getStatusIcon(request.status)}
@@ -531,23 +547,10 @@ const AdminPanel: React.FC = () => {
           },
         }}
       >
-        <DialogTitle
-          sx={{
-            background:
-              actionType === "approve"
-                ? "linear-gradient(135deg, #4caf50 0%, #66bb6a 100%)"
-                : "linear-gradient(135deg, #f44336 0%, #ef5350 100%)",
-            color: "white",
-            textAlign: "center",
-            py: 3,
-          }}
-        >
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1 }}>
-            {actionType === "approve" ? <CheckCircle /> : <Block />}
-            <Typography variant="h6" fontWeight="bold">
-              {actionType === "approve" ? "🐧 빙하 기지 입장 허가" : "🚫 빙하 기지 접근 차단"}
-            </Typography>
-          </Box>
+        <DialogTitle sx={{ pb: 1 }}>
+          {actionType === "approve"
+            ? `🐧 ${themeConfig?.concepts?.environment?.split(" ")[0] || "빙하"} 기지 입장 허가`
+            : `🚫 ${themeConfig?.concepts?.environment?.split(" ")[0] || "빙하"} 기지 접근 차단`}
         </DialogTitle>
         <DialogContent sx={{ py: 4 }}>
           {selectedRequest && (
@@ -589,10 +592,14 @@ const AdminPanel: React.FC = () => {
                 </Box>
               </Box>
 
-              <Typography variant="body1" sx={{ mb: 3, textAlign: "center" }}>
+              <Typography variant="body1" sx={{ mb: 3, textAlign: "center", fontWeight: "medium" }}>
                 {actionType === "approve"
-                  ? "🎉 이 펭귄이 빙하 기지에 입장할 수 있도록 허가하시겠어요?"
-                  : "🚫 이 펭귄의 빙하 기지 접근을 차단하시겠어요?"}
+                  ? `🎉 이 ${themeConfig?.concepts?.animal || "펭귄"}이 ${
+                      themeConfig?.concepts?.environment?.split(" ")[0] || "빙하"
+                    } 기지에 입장할 수 있도록 허가하시겠어요?`
+                  : `🚫 이 ${themeConfig?.concepts?.animal || "펭귄"}의 ${
+                      themeConfig?.concepts?.environment?.split(" ")[0] || "빙하"
+                    } 기지 접근을 차단하시겠어요?`}
               </Typography>
 
               <TextField

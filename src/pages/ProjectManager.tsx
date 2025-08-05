@@ -676,7 +676,8 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ themeConfig }) => {
           <Box>
             <Typography variant="h6" fontWeight="bold" sx={{ mb: 3, display: "flex", alignItems: "center", gap: 1 }}>
               <Explore color="primary" />
-              빙하 탐험 현황판
+              {themeConfig?.concepts?.environment?.split(" ")[0] || "빙하"}{" "}
+              {themeConfig?.concepts?.projectType || "탐험"} 현황판
             </Typography>
             <Box sx={{ overflowX: "auto", pb: 2 }}>
               <Box sx={{ display: "flex", gap: 3, minWidth: "fit-content" }}>
