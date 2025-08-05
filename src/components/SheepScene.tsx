@@ -20,6 +20,7 @@ interface SheepEntity {
   lastMove: number;
   isResting: boolean;
   restUntil: number;
+  isHovered: boolean;
 }
 
 const SheepScene: React.FC<SheepSceneProps> = ({ width = 800, height = 400, projects = [] }) => {
@@ -48,6 +49,7 @@ const SheepScene: React.FC<SheepSceneProps> = ({ width = 800, height = 400, proj
         lastMove: Date.now(),
         isResting: Math.random() < 0.3, // 30% 확률로 쉬는 중
         restUntil: Date.now() + Math.random() * 5000,
+        isHovered: false,
       };
       newSheep.push(sheepEntity);
     }
@@ -67,8 +69,8 @@ const SheepScene: React.FC<SheepSceneProps> = ({ width = 800, height = 400, proj
           newSheep.isResting = false;
         }
 
-        // 양은 이모지일 때만 움직임
-        if (newSheep.emoji !== "🐑" || newSheep.isResting) {
+        // hover 중이거나 양이 아니거나 쉬는 중이면 움직이지 않음
+        if (newSheep.isHovered || newSheep.emoji !== "🐑" || newSheep.isResting) {
           return newSheep;
         }
 
@@ -122,14 +124,19 @@ const SheepScene: React.FC<SheepSceneProps> = ({ width = 800, height = 400, proj
     }
   };
 
-  const handleSheepHover = (sheepEntity: SheepEntity) => {
-    if (sheepEntity.project && sheepEntity.emoji === "🐑") {
+  const handleSheepHover = (sheepEntity: SheepEntity, isHovering: boolean) => {
+    setSheep((prevSheep) => prevSheep.map((s) => (s.id === sheepEntity.id ? { ...s, isHovered: isHovering } : s)));
+
+    if (isHovering && sheepEntity.project && sheepEntity.emoji === "🐑") {
       setHoveredProject(sheepEntity.project);
+    } else if (!isHovering) {
+      setHoveredProject(null);
     }
   };
 
   const handleMouseLeave = () => {
     setHoveredProject(null);
+    setSheep((prevSheep) => prevSheep.map((s) => ({ ...s, isHovered: false })));
   };
 
   // 초기화 및 애니메이션 시작
@@ -144,27 +151,16 @@ const SheepScene: React.FC<SheepSceneProps> = ({ width = 800, height = 400, proj
     };
   }, [createSheep, animate]);
 
-  // 목초지 배경 요소들
-  const grassElements = Array.from({ length: 20 }, (_, i) => (
-    <Box
-      key={i}
-      sx={{
-        position: "absolute",
-        fontSize: "12px",
-        opacity: 0.7,
-        left: `${Math.random() * 100}%`,
-        top: `${Math.random() * 100}%`,
-        animation: `sway ${2 + Math.random() * 2}s ease-in-out infinite`,
-        animationDelay: `${Math.random() * 2}s`,
-        "@keyframes sway": {
-          "0%, 100%": { transform: "rotate(-2deg)" },
-          "50%": { transform: "rotate(2deg)" },
-        },
-      }}
-    >
-      {i % 3 === 0 ? "🌱" : i % 3 === 1 ? "🍀" : "🌾"}
-    </Box>
-  ));
+  // 고정된 목초지 장식 요소들
+  const staticMeadowElements = [
+    { emoji: "🌳", x: "10%", y: "20%", size: "45px", opacity: 0.8 },
+    { emoji: "☁️", x: "80%", y: "15%", size: "35px", opacity: 0.9 },
+    { emoji: "🏠", x: "85%", y: "75%", size: "30px", opacity: 0.7 },
+    { emoji: "🌻", x: "25%", y: "85%", size: "25px", opacity: 0.8 },
+    { emoji: "🦋", x: "70%", y: "30%", size: "20px", opacity: 0.6 },
+    { emoji: "🌾", x: "15%", y: "70%", size: "22px", opacity: 0.7 },
+    { emoji: "🌿", x: "90%", y: "45%", size: "18px", opacity: 0.6 },
+  ];
 
   return (
     <Box
@@ -173,58 +169,31 @@ const SheepScene: React.FC<SheepSceneProps> = ({ width = 800, height = 400, proj
         position: "relative",
         width: width,
         height: height,
-        background: "radial-gradient(circle at 30% 70%, #f1f8e9 0%, #c8e6c9 40%, #4caf50 100%)",
+        background: "linear-gradient(135deg, #E8F5E8 0%, #C8E6C9 25%, #81C784 50%, #4CAF50 100%)",
         borderRadius: 2,
         overflow: "hidden",
         cursor: "pointer",
-        "&::before": {
-          content: '""',
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: `url("data:image/svg+xml,%3Csvg width='20' height='20' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3Cpattern id='grass' patternUnits='userSpaceOnUse' width='20' height='20'%3E%3Crect width='20' height='20' fill='%23F1F8E9'/%3E%3Cpath d='M0,20 Q5,10 10,20 Q15,10 20,20' stroke='%23C8E6C9' stroke-width='1' fill='none'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width='100%25' height='100%25' fill='url(%23grass)'/%3E%3C/svg%3E")`,
-          opacity: 0.4,
-          pointerEvents: "none",
-        },
       }}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
     >
-      {/* 목초지 배경 요소들 */}
-      {grassElements}
-
-      {/* 구름 */}
-      <Box
-        sx={{
-          position: "absolute",
-          top: "25px",
-          right: "40px",
-          fontSize: "30px",
-          opacity: 0.9,
-          animation: "drift 8s ease-in-out infinite",
-          "@keyframes drift": {
-            "0%, 100%": { transform: "translateX(0px)" },
-            "50%": { transform: "translateX(20px)" },
-          },
-        }}
-      >
-        ☁️
-      </Box>
-
-      {/* 나무 */}
-      <Box
-        sx={{
-          position: "absolute",
-          top: "30px",
-          left: "30px",
-          fontSize: "35px",
-          opacity: 0.8,
-        }}
-      >
-        🌳
-      </Box>
+      {/* 고정된 목초지 장식 요소들 */}
+      {staticMeadowElements.map((element, index) => (
+        <Box
+          key={index}
+          sx={{
+            position: "absolute",
+            left: element.x,
+            top: element.y,
+            fontSize: element.size,
+            opacity: element.opacity,
+            pointerEvents: "none",
+            userSelect: "none",
+          }}
+        >
+          {element.emoji}
+        </Box>
+      ))}
 
       {/* 양들과 목초지 요소들 */}
       {sheep.map((sheepEntity) => (
@@ -236,15 +205,16 @@ const SheepScene: React.FC<SheepSceneProps> = ({ width = 800, height = 400, proj
             top: sheepEntity.y,
             fontSize: sheepEntity.emoji === "🐑" ? "24px" : "16px",
             cursor: sheepEntity.project ? "pointer" : "default",
-            transform: `translate(-50%, -50%) ${sheepEntity.isResting ? "scale(0.9)" : "scale(1)"}`,
+            transform: `translate(-50%, -50%) ${
+              sheepEntity.isHovered ? "scale(1.3)" : sheepEntity.isResting ? "scale(0.9)" : "scale(1)"
+            }`,
             transition: "transform 0.3s ease",
             zIndex: sheepEntity.emoji === "🐑" ? 10 : 5,
             opacity: sheepEntity.isResting ? 0.8 : 1,
-            "&:hover": {
-              transform: "translate(-50%, -50%) scale(1.2)",
-            },
+            filter: sheepEntity.isHovered ? "drop-shadow(0 0 8px rgba(76, 175, 80, 0.8))" : "none",
           }}
-          onMouseEnter={() => handleSheepHover(sheepEntity)}
+          onMouseEnter={() => handleSheepHover(sheepEntity, true)}
+          onMouseLeave={() => handleSheepHover(sheepEntity, false)}
         >
           {sheepEntity.emoji}
         </Box>
@@ -263,6 +233,8 @@ const SheepScene: React.FC<SheepSceneProps> = ({ width = 800, height = 400, proj
             boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
             borderRadius: 2,
             border: "2px solid #4caf50",
+            backdropFilter: "blur(8px)",
+            backgroundColor: "rgba(232, 245, 232, 0.95)",
           }}
         >
           <CardContent sx={{ p: 2 }}>

@@ -577,11 +577,12 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
               <Slider
                 value={selectedMinutes}
                 onChange={(_, value) => setSelectedMinutes(value as number)}
-                min={5}
+                min={1}
                 max={99}
                 step={1}
                 disabled={isActive}
                 marks={[
+                  { value: 1, label: "1분" },
                   { value: 5, label: "5분" },
                   { value: 25, label: "25분" },
                   { value: 50, label: "50분" },

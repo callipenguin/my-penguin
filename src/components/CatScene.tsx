@@ -20,6 +20,7 @@ interface CatEntity {
   lastMove: number;
   isPouncing: boolean;
   pounceEndTime: number;
+  isHovered: boolean;
 }
 
 const CatScene: React.FC<CatSceneProps> = ({ width = 800, height = 400, projects = [] }) => {
@@ -48,6 +49,7 @@ const CatScene: React.FC<CatSceneProps> = ({ width = 800, height = 400, projects
         lastMove: Date.now(),
         isPouncing: false,
         pounceEndTime: 0,
+        isHovered: false,
       };
       newCats.push(cat);
     }
@@ -67,8 +69,8 @@ const CatScene: React.FC<CatSceneProps> = ({ width = 800, height = 400, projects
           newCat.isPouncing = false;
         }
 
-        // 고양이 이모지만 움직임
-        if (newCat.emoji !== "🐱") {
+        // hover 중이거나 고양이가 아니면 움직이지 않음
+        if (newCat.isHovered || newCat.emoji !== "🐱") {
           return newCat;
         }
 
@@ -120,14 +122,19 @@ const CatScene: React.FC<CatSceneProps> = ({ width = 800, height = 400, projects
     }
   };
 
-  const handleCatHover = (cat: CatEntity) => {
-    if (cat.project && cat.emoji === "🐱") {
+  const handleCatHover = (cat: CatEntity, isHovering: boolean) => {
+    setCats((prevCats) => prevCats.map((c) => (c.id === cat.id ? { ...c, isHovered: isHovering } : c)));
+
+    if (isHovering && cat.project && cat.emoji === "🐱") {
       setHoveredProject(cat.project);
+    } else if (!isHovering) {
+      setHoveredProject(null);
     }
   };
 
   const handleMouseLeave = () => {
     setHoveredProject(null);
+    setCats((prevCats) => prevCats.map((c) => ({ ...c, isHovered: false })));
   };
 
   // 초기화 및 애니메이션 시작
@@ -142,27 +149,16 @@ const CatScene: React.FC<CatSceneProps> = ({ width = 800, height = 400, projects
     };
   }, [createCats, animate]);
 
-  // 집 내부 장식 요소들
-  const homeElements = Array.from({ length: 12 }, (_, i) => (
-    <Box
-      key={i}
-      sx={{
-        position: "absolute",
-        fontSize: "14px",
-        opacity: 0.6,
-        left: `${Math.random() * 100}%`,
-        top: `${Math.random() * 100}%`,
-        animation: `twinkle ${1 + Math.random() * 2}s ease-in-out infinite`,
-        animationDelay: `${Math.random() * 2}s`,
-        "@keyframes twinkle": {
-          "0%, 100%": { opacity: 0.6, transform: "scale(1)" },
-          "50%": { opacity: 0.9, transform: "scale(1.1)" },
-        },
-      }}
-    >
-      {i % 5 === 0 ? "✨" : i % 5 === 1 ? "🕯️" : i % 5 === 2 ? "📚" : i % 5 === 3 ? "🖼️" : "🪴"}
-    </Box>
-  ));
+  // 고정된 집 내부 장식 요소들
+  const staticHomeElements = [
+    { emoji: "🪟", x: "85%", y: "15%", size: "40px", opacity: 0.8 },
+    { emoji: "🔥", x: "15%", y: "80%", size: "30px", opacity: 0.9 },
+    { emoji: "📚", x: "20%", y: "25%", size: "25px", opacity: 0.7 },
+    { emoji: "🖼️", x: "70%", y: "20%", size: "35px", opacity: 0.6 },
+    { emoji: "🪴", x: "90%", y: "70%", size: "28px", opacity: 0.8 },
+    { emoji: "🕯️", x: "25%", y: "70%", size: "20px", opacity: 0.7 },
+    { emoji: "✨", x: "60%", y: "85%", size: "18px", opacity: 0.6 },
+  ];
 
   return (
     <Box
@@ -171,63 +167,31 @@ const CatScene: React.FC<CatSceneProps> = ({ width = 800, height = 400, projects
         position: "relative",
         width: width,
         height: height,
-        background: "radial-gradient(circle at 50% 30%, #fff8e1 0%, #ffcc02 40%, #ff7043 100%)",
+        background: "linear-gradient(135deg, #FFF8E1 0%, #FFCC02 25%, #FF8A65 50%, #FF7043 100%)",
         borderRadius: 2,
         overflow: "hidden",
         cursor: "pointer",
-        "&::before": {
-          content: '""',
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: `url("data:image/svg+xml,%3Csvg width='20' height='20' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3Cpattern id='home' patternUnits='userSpaceOnUse' width='20' height='20'%3E%3Crect width='20' height='20' fill='%23FFF8E1'/%3E%3Ccircle cx='5' cy='5' r='2' fill='%23FFCC02'/%3E%3Ccircle cx='15' cy='15' r='2' fill='%23FFCC02'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width='100%25' height='100%25' fill='url(%23home)'/%3E%3C/svg%3E")`,
-          opacity: 0.3,
-          pointerEvents: "none",
-        },
       }}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
     >
-      {/* 집 내부 장식 요소들 */}
-      {homeElements}
-
-      {/* 창문 */}
-      <Box
-        sx={{
-          position: "absolute",
-          top: "20px",
-          right: "30px",
-          fontSize: "35px",
-          opacity: 0.8,
-          animation: "sunshine 6s ease-in-out infinite",
-          "@keyframes sunshine": {
-            "0%, 100%": { opacity: 0.8 },
-            "50%": { opacity: 1 },
-          },
-        }}
-      >
-        🪟
-      </Box>
-
-      {/* 벽난로 */}
-      <Box
-        sx={{
-          position: "absolute",
-          bottom: "30px",
-          left: "30px",
-          fontSize: "25px",
-          opacity: 0.9,
-          animation: "flicker 2s ease-in-out infinite",
-          "@keyframes flicker": {
-            "0%, 100%": { opacity: 0.9 },
-            "50%": { opacity: 0.7 },
-          },
-        }}
-      >
-        🔥
-      </Box>
+      {/* 고정된 집 내부 장식 요소들 */}
+      {staticHomeElements.map((element, index) => (
+        <Box
+          key={index}
+          sx={{
+            position: "absolute",
+            left: element.x,
+            top: element.y,
+            fontSize: element.size,
+            opacity: element.opacity,
+            pointerEvents: "none",
+            userSelect: "none",
+          }}
+        >
+          {element.emoji}
+        </Box>
+      ))}
 
       {/* 고양이들과 집 안 요소들 */}
       {cats.map((cat) => (
@@ -239,14 +203,15 @@ const CatScene: React.FC<CatSceneProps> = ({ width = 800, height = 400, projects
             top: cat.y,
             fontSize: cat.emoji === "🐱" ? "24px" : "18px",
             cursor: cat.project ? "pointer" : "default",
-            transform: `translate(-50%, -50%) ${cat.isPouncing ? "scale(1.3) rotate(10deg)" : "scale(1)"}`,
-            transition: cat.isPouncing ? "transform 0.1s ease" : "transform 0.3s ease",
+            transform: `translate(-50%, -50%) ${
+              cat.isHovered ? "scale(1.3)" : cat.isPouncing ? "scale(1.3) rotate(10deg)" : "scale(1)"
+            }`,
+            transition: cat.isPouncing || cat.isHovered ? "transform 0.1s ease" : "transform 0.3s ease",
             zIndex: cat.emoji === "🐱" ? 10 : 5,
-            "&:hover": {
-              transform: "translate(-50%, -50%) scale(1.2)",
-            },
+            filter: cat.isHovered ? "drop-shadow(0 0 8px rgba(255, 112, 67, 0.8))" : "none",
           }}
-          onMouseEnter={() => handleCatHover(cat)}
+          onMouseEnter={() => handleCatHover(cat, true)}
+          onMouseLeave={() => handleCatHover(cat, false)}
         >
           {cat.emoji}
         </Box>
@@ -265,6 +230,8 @@ const CatScene: React.FC<CatSceneProps> = ({ width = 800, height = 400, projects
             boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
             borderRadius: 2,
             border: "2px solid #ff7043",
+            backdropFilter: "blur(8px)",
+            backgroundColor: "rgba(255, 248, 225, 0.95)",
           }}
         >
           <CardContent sx={{ p: 2 }}>

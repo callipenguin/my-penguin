@@ -18,6 +18,7 @@ interface FoxEntity {
   emoji: string;
   project?: Project;
   lastMove: number;
+  isHovered: boolean;
 }
 
 const DesertFoxScene: React.FC<DesertFoxSceneProps> = ({ width = 800, height = 400, projects = [] }) => {
@@ -44,6 +45,7 @@ const DesertFoxScene: React.FC<DesertFoxSceneProps> = ({ width = 800, height = 4
         emoji: i % 2 === 0 ? "🦊" : "🌵", // 여우와 선인장을 번갈아
         project: projects[i] || undefined,
         lastMove: Date.now(),
+        isHovered: false,
       };
       newFoxes.push(fox);
     }
@@ -57,6 +59,11 @@ const DesertFoxScene: React.FC<DesertFoxSceneProps> = ({ width = 800, height = 4
       prevFoxes.map((fox) => {
         const now = Date.now();
         let newFox = { ...fox };
+
+        // hover 중이거나 선인장이면 움직이지 않음
+        if (newFox.isHovered || newFox.emoji !== "🦊") {
+          return newFox;
+        }
 
         // 목표 지점에 도달했거나 일정 시간 후 새 목표 설정
         const distance = Math.sqrt(Math.pow(fox.x - fox.targetX, 2) + Math.pow(fox.y - fox.targetY, 2));
@@ -99,14 +106,19 @@ const DesertFoxScene: React.FC<DesertFoxSceneProps> = ({ width = 800, height = 4
     }
   };
 
-  const handleFoxHover = (fox: FoxEntity) => {
-    if (fox.project && fox.emoji === "🦊") {
+  const handleFoxHover = (fox: FoxEntity, isHovering: boolean) => {
+    setFoxes((prevFoxes) => prevFoxes.map((f) => (f.id === fox.id ? { ...f, isHovered: isHovering } : f)));
+
+    if (isHovering && fox.project && fox.emoji === "🦊") {
       setHoveredProject(fox.project);
+    } else if (!isHovering) {
+      setHoveredProject(null);
     }
   };
 
   const handleMouseLeave = () => {
     setHoveredProject(null);
+    setFoxes((prevFoxes) => prevFoxes.map((f) => ({ ...f, isHovered: false })));
   };
 
   // 초기화 및 애니메이션 시작
@@ -121,28 +133,14 @@ const DesertFoxScene: React.FC<DesertFoxSceneProps> = ({ width = 800, height = 4
     };
   }, [createFoxes, animate]);
 
-  // 사막 배경 입자들
-  const sandParticles = Array.from({ length: 15 }, (_, i) => (
-    <Box
-      key={i}
-      sx={{
-        position: "absolute",
-        width: "4px",
-        height: "4px",
-        backgroundColor: "#f4a261",
-        borderRadius: "50%",
-        opacity: 0.6,
-        left: `${Math.random() * 100}%`,
-        top: `${Math.random() * 100}%`,
-        animation: `float ${3 + Math.random() * 2}s ease-in-out infinite`,
-        animationDelay: `${Math.random() * 2}s`,
-        "@keyframes float": {
-          "0%, 100%": { transform: "translateY(0px)" },
-          "50%": { transform: "translateY(-10px)" },
-        },
-      }}
-    />
-  ));
+  // 고정된 사막 장식 요소들
+  const staticDesertElements = [
+    { emoji: "☀️", x: "85%", y: "15%", size: "40px", opacity: 0.8 },
+    { emoji: "🏜️", x: "20%", y: "80%", size: "35px", opacity: 0.6 },
+    { emoji: "🌵", x: "90%", y: "70%", size: "30px", opacity: 0.7 },
+    { emoji: "🏔️", x: "10%", y: "20%", size: "45px", opacity: 0.5 },
+    { emoji: "🐪", x: "70%", y: "85%", size: "25px", opacity: 0.6 },
+  ];
 
   return (
     <Box
@@ -151,45 +149,31 @@ const DesertFoxScene: React.FC<DesertFoxSceneProps> = ({ width = 800, height = 4
         position: "relative",
         width: width,
         height: height,
-        background: "radial-gradient(circle at 30% 70%, #fff3e0 0%, #ffcc02 40%, #ff8f00 100%)",
+        background: "linear-gradient(135deg, #FFF3E0 0%, #FFCC02 25%, #FF8F00 50%, #E65100 100%)",
         borderRadius: 2,
         overflow: "hidden",
         cursor: "pointer",
-        "&::before": {
-          content: '""',
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: `url("data:image/svg+xml,%3Csvg width='20' height='20' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3Cpattern id='sand' patternUnits='userSpaceOnUse' width='20' height='20'%3E%3Crect width='20' height='20' fill='%23FFF3E0'/%3E%3Crect x='10' y='10' width='10' height='10' fill='%23FFCC02'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width='100%25' height='100%25' fill='url(%23sand)'/%3E%3C/svg%3E")`,
-          opacity: 0.3,
-          pointerEvents: "none",
-        },
       }}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
     >
-      {/* 사막 배경 입자들 */}
-      {sandParticles}
-
-      {/* 태양 */}
-      <Box
-        sx={{
-          position: "absolute",
-          top: "20px",
-          right: "30px",
-          fontSize: "40px",
-          opacity: 0.8,
-          animation: "pulse 4s ease-in-out infinite",
-          "@keyframes pulse": {
-            "0%, 100%": { transform: "scale(1)", opacity: 0.8 },
-            "50%": { transform: "scale(1.1)", opacity: 1 },
-          },
-        }}
-      >
-        ☀️
-      </Box>
+      {/* 고정된 사막 장식 요소들 */}
+      {staticDesertElements.map((element, index) => (
+        <Box
+          key={index}
+          sx={{
+            position: "absolute",
+            left: element.x,
+            top: element.y,
+            fontSize: element.size,
+            opacity: element.opacity,
+            pointerEvents: "none",
+            userSelect: "none",
+          }}
+        >
+          {element.emoji}
+        </Box>
+      ))}
 
       {/* 여우들 */}
       {foxes.map((fox) => (
@@ -201,14 +185,13 @@ const DesertFoxScene: React.FC<DesertFoxSceneProps> = ({ width = 800, height = 4
             top: fox.y,
             fontSize: fox.emoji === "🦊" ? "24px" : "20px",
             cursor: fox.project ? "pointer" : "default",
-            transform: `translate(-50%, -50%)`,
-            transition: "transform 0.1s ease",
+            transform: `translate(-50%, -50%) ${fox.isHovered ? "scale(1.3)" : "scale(1)"}`,
+            transition: "transform 0.2s ease",
             zIndex: fox.emoji === "🦊" ? 10 : 5,
-            "&:hover": {
-              transform: "translate(-50%, -50%) scale(1.2)",
-            },
+            filter: fox.isHovered ? "drop-shadow(0 0 8px rgba(255, 143, 0, 0.8))" : "none",
           }}
-          onMouseEnter={() => handleFoxHover(fox)}
+          onMouseEnter={() => handleFoxHover(fox, true)}
+          onMouseLeave={() => handleFoxHover(fox, false)}
         >
           {fox.emoji}
         </Box>
@@ -227,6 +210,8 @@ const DesertFoxScene: React.FC<DesertFoxSceneProps> = ({ width = 800, height = 4
             boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
             borderRadius: 2,
             border: "2px solid #ff8f00",
+            backdropFilter: "blur(8px)",
+            backgroundColor: "rgba(255, 248, 225, 0.95)",
           }}
         >
           <CardContent sx={{ p: 2 }}>
