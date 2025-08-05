@@ -14,7 +14,7 @@ import {
   CircularProgress,
   Alert,
 } from "@mui/material";
-import { Send, SmartToy, Person, Lightbulb, Psychology, Schedule, TrendingUp, Warning } from "@mui/icons-material";
+import { Send, SmartToy, Person, Lightbulb, Warning } from "@mui/icons-material";
 import { ChatMessage, ConditionLevel } from "../types";
 import { callLocalAI, checkOllamaStatus, AIContext } from "../utils/localAI";
 import dayjs from "dayjs";

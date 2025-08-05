@@ -40,7 +40,8 @@ import {
   CloudDownload,
   ExpandMore,
 } from "@mui/icons-material";
-import { UserPreferences } from "../types";
+import { UserPreferences, ThemeSettings, ThemeType, ColorMode, ThemeConfigExtended } from "../types";
+import { getThemeConfig, getAllThemes } from "../config/themes";
 import {
   migrateLocalDataToFirebase,
   downloadFirebaseDataToLocal,
@@ -48,7 +49,13 @@ import {
   getCurrentUser,
 } from "../utils/firebase";
 
-const Settings: React.FC = () => {
+interface SettingsProps {
+  onThemeChange: (newSettings: Partial<ThemeSettings>) => void;
+  themeSettings: ThemeSettings;
+  themeConfig?: ThemeConfigExtended;
+}
+
+const Settings: React.FC<SettingsProps> = ({ onThemeChange, themeSettings, themeConfig }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [preferences, setPreferences] = useState<UserPreferences>({
@@ -63,7 +70,7 @@ const Settings: React.FC = () => {
       projectDeadlines: true,
       breakReminders: true,
     },
-    theme: "light",
+    theme: themeSettings,
     language: "ko",
   });
 
@@ -73,6 +80,7 @@ const Settings: React.FC = () => {
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
 
   const currentUser = getCurrentUser();
+  const availableThemes = getAllThemes();
 
   // 설정 로드
   useEffect(() => {
@@ -213,7 +221,7 @@ const Settings: React.FC = () => {
         projectDeadlines: true,
         breakReminders: true,
       },
-      theme: "light",
+      theme: { type: "penguin", mode: "light" },
       language: "ko",
     });
     setSaveMessage("설정이 초기화되었습니다.");
@@ -481,33 +489,116 @@ const Settings: React.FC = () => {
               </Box>
             </AccordionSummary>
             <AccordionDetails>
-              <Stack spacing={2}>
+              <Stack spacing={4}>
+                {/* 현재 선택된 테마 표시 */}
+                <Card
+                  sx={{
+                    p: 3,
+                    background: `linear-gradient(135deg, ${theme.palette.primary.main}20, ${theme.palette.secondary.main}20)`,
+                    border: `2px solid ${theme.palette.primary.main}`,
+                    borderRadius: 3,
+                  }}
+                >
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
+                    <Typography variant="h4">{getThemeConfig(themeSettings.type).emoji}</Typography>
+                    <Box>
+                      <Typography variant="h6" fontWeight="bold" color="primary">
+                        현재 테마: {getThemeConfig(themeSettings.type).name}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {themeSettings.mode === "light"
+                          ? "☀️ 라이트 모드"
+                          : themeSettings.mode === "dark"
+                          ? "🌙 다크 모드"
+                          : "🔄 자동 모드"}
+                      </Typography>
+                    </Box>
+                  </Box>
+                  <Typography variant="body2" color="text.primary" sx={{ fontStyle: "italic" }}>
+                    {getThemeConfig(themeSettings.type).concepts.appDescription}
+                  </Typography>
+                </Card>
+
+                <Divider />
+
+                {/* 테마 타입 선택 */}
+                <Box>
+                  <Typography variant="h6" gutterBottom fontWeight="bold">
+                    🎨 테마 선택
+                  </Typography>
+                  <Grid container spacing={2}>
+                    {availableThemes.map((themeItem) => (
+                      <Grid item xs={12} sm={6} key={themeItem.id}>
+                        <Card
+                          sx={{
+                            p: 2,
+                            cursor: "pointer",
+                            border:
+                              themeSettings.type === themeItem.id
+                                ? `3px solid ${theme.palette.primary.main}`
+                                : "1px solid #e0e0e0",
+                            transition: "all 0.3s ease",
+                            "&:hover": {
+                              transform: "translateY(-2px)",
+                              boxShadow: 2,
+                            },
+                          }}
+                          onClick={() => {
+                            onThemeChange({ type: themeItem.id });
+                            setPreferences((prev) => ({
+                              ...prev,
+                              theme: { ...prev.theme, type: themeItem.id },
+                            }));
+                          }}
+                        >
+                          <Box sx={{ textAlign: "center" }}>
+                            <Typography variant="h2" sx={{ mb: 1 }}>
+                              {themeItem.emoji}
+                            </Typography>
+                            <Typography variant="h6" fontWeight="bold" gutterBottom>
+                              {themeItem.name}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              {themeItem.description}
+                            </Typography>
+                            {themeSettings.type === themeItem.id && (
+                              <Chip label="현재 선택" color="primary" size="small" sx={{ mt: 1 }} />
+                            )}
+                          </Box>
+                        </Card>
+                      </Grid>
+                    ))}
+                  </Grid>
+                </Box>
+
+                <Divider />
+
+                {/* 색상 모드 선택 */}
                 <FormControl fullWidth>
-                  <InputLabel>테마</InputLabel>
+                  <InputLabel>색상 모드</InputLabel>
                   <Select
-                    value={preferences.theme}
-                    label="테마"
+                    value={themeSettings.mode}
+                    label="색상 모드"
                     onChange={(e) => {
-                      const newTheme = e.target.value as "light" | "dark" | "auto";
-                      setPreferences((prev) => ({ ...prev, theme: newTheme }));
-
-                      // 즉시 테마 적용을 위해 설정 저장
-                      const updatedPreferences = { ...preferences, theme: newTheme };
-                      localStorage.setItem("settings", JSON.stringify(updatedPreferences));
-
-                      // 페이지 새로고침으로 테마 즉시 적용
-                      window.location.reload();
+                      const newMode = e.target.value as ColorMode;
+                      onThemeChange({ mode: newMode });
+                      setPreferences((prev) => ({
+                        ...prev,
+                        theme: { ...prev.theme, mode: newMode },
+                      }));
                     }}
                   >
-                    <MenuItem value="light">라이트 모드 ☀️</MenuItem>
-                    <MenuItem value="dark">다크 모드 🌙</MenuItem>
-                    <MenuItem value="auto">시스템 설정 따라가기 🔄</MenuItem>
+                    <MenuItem value="light">☀️ 라이트 모드</MenuItem>
+                    <MenuItem value="dark">🌙 다크 모드</MenuItem>
+                    <MenuItem value="auto">🔄 시스템 설정 따라가기</MenuItem>
                   </Select>
                 </FormControl>
 
-                <Typography variant="body2" color="textSecondary">
-                  테마 변경이 즉시 적용됩니다! ✨
-                </Typography>
+                <Alert severity="info" sx={{ mt: 2 }}>
+                  <Typography variant="body2">
+                    ✨ 테마 변경이 즉시 적용됩니다! 각 테마는 고유한 색상과 컨셉을 가지고 있어요.
+                  </Typography>
+                </Alert>
               </Stack>
             </AccordionDetails>
           </Accordion>
@@ -942,32 +1033,107 @@ const Settings: React.FC = () => {
                   </Typography>
                 </Box>
 
-                <FormControl fullWidth>
-                  <InputLabel>테마</InputLabel>
-                  <Select
-                    value={preferences.theme}
-                    label="테마"
-                    onChange={(e) => {
-                      const newTheme = e.target.value as "light" | "dark" | "auto";
-                      setPreferences((prev) => ({ ...prev, theme: newTheme }));
-
-                      // 즉시 테마 적용을 위해 설정 저장
-                      const updatedPreferences = { ...preferences, theme: newTheme };
-                      localStorage.setItem("settings", JSON.stringify(updatedPreferences));
-
-                      // 페이지 새로고침으로 테마 즉시 적용
-                      window.location.reload();
+                <Stack spacing={3}>
+                  {/* 현재 선택된 테마 표시 */}
+                  <Card
+                    sx={{
+                      p: 2,
+                      background: `linear-gradient(135deg, ${theme.palette.primary.main}20, ${theme.palette.secondary.main}20)`,
+                      border: `2px solid ${theme.palette.primary.main}`,
+                      borderRadius: 2,
                     }}
                   >
-                    <MenuItem value="light">라이트 모드 ☀️</MenuItem>
-                    <MenuItem value="dark">다크 모드 🌙</MenuItem>
-                    <MenuItem value="auto">시스템 설정 따라가기 🔄</MenuItem>
-                  </Select>
-                </FormControl>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 1 }}>
+                      <Typography variant="h5">{getThemeConfig(themeSettings.type).emoji}</Typography>
+                      <Box>
+                        <Typography variant="subtitle1" fontWeight="bold" color="primary">
+                          {getThemeConfig(themeSettings.type).name}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {themeSettings.mode === "light"
+                            ? "☀️ 라이트"
+                            : themeSettings.mode === "dark"
+                            ? "🌙 다크"
+                            : "🔄 자동"}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Card>
 
-                <Typography variant="body2" color="textSecondary">
-                  테마 변경이 즉시 적용됩니다! ✨
-                </Typography>
+                  {/* 테마 타입 선택 */}
+                  <Box>
+                    <Typography variant="subtitle1" gutterBottom fontWeight="bold">
+                      🎨 테마 선택
+                    </Typography>
+                    <Grid container spacing={1}>
+                      {availableThemes.map((themeItem) => (
+                        <Grid item xs={6} key={themeItem.id}>
+                          <Card
+                            sx={{
+                              p: 1.5,
+                              cursor: "pointer",
+                              border:
+                                themeSettings.type === themeItem.id
+                                  ? `2px solid ${theme.palette.primary.main}`
+                                  : "1px solid #e0e0e0",
+                              transition: "all 0.3s ease",
+                              "&:hover": { transform: "translateY(-1px)", boxShadow: 1 },
+                            }}
+                            onClick={() => {
+                              onThemeChange({ type: themeItem.id });
+                              setPreferences((prev) => ({
+                                ...prev,
+                                theme: { ...prev.theme, type: themeItem.id },
+                              }));
+                            }}
+                          >
+                            <Box sx={{ textAlign: "center" }}>
+                              <Typography variant="h4" sx={{ mb: 0.5 }}>
+                                {themeItem.emoji}
+                              </Typography>
+                              <Typography variant="body2" fontWeight="bold">
+                                {themeItem.name}
+                              </Typography>
+                              {themeSettings.type === themeItem.id && (
+                                <Chip
+                                  label="선택됨"
+                                  color="primary"
+                                  size="small"
+                                  sx={{ mt: 0.5, fontSize: "0.7rem" }}
+                                />
+                              )}
+                            </Box>
+                          </Card>
+                        </Grid>
+                      ))}
+                    </Grid>
+                  </Box>
+
+                  {/* 색상 모드 선택 */}
+                  <FormControl fullWidth size="small">
+                    <InputLabel>색상 모드</InputLabel>
+                    <Select
+                      value={themeSettings.mode}
+                      label="색상 모드"
+                      onChange={(e) => {
+                        const newMode = e.target.value as ColorMode;
+                        onThemeChange({ mode: newMode });
+                        setPreferences((prev) => ({
+                          ...prev,
+                          theme: { ...prev.theme, mode: newMode },
+                        }));
+                      }}
+                    >
+                      <MenuItem value="light">☀️ 라이트</MenuItem>
+                      <MenuItem value="dark">🌙 다크</MenuItem>
+                      <MenuItem value="auto">🔄 자동</MenuItem>
+                    </Select>
+                  </FormControl>
+
+                  <Typography variant="body2" color="textSecondary" sx={{ fontSize: "0.8rem" }}>
+                    ✨ 변경사항이 즉시 적용됩니다
+                  </Typography>
+                </Stack>
               </CardContent>
             </Card>
           </Grid>

@@ -23,40 +23,50 @@ import AdminPanel from "./pages/AdminPanel";
 import Pomodoro from "./pages/Pomodoro";
 
 // Firebase
-import { onAuthStateChange, getUserAccessStatus } from "./utils/firebase";
+import { onAuthStateChange, getUserAccessStatus, isAdmin } from "./utils/firebase";
+
+// Theme System
+import { getThemeConfig, getThemeColors } from "./config/themes";
+import { ThemeSettings, ThemeType, ColorMode, ThemeConfigExtended } from "./types";
 
 // 테마 생성 함수
-const createAppTheme = (themeMode: "light" | "dark") => {
-  const isLight = themeMode === "light";
+const createAppTheme = (themeSettings: ThemeSettings) => {
+  const { type, mode } = themeSettings;
+  const themeConfig = getThemeConfig(type);
+  const colors = getThemeColors(type, mode);
+
+  // 실제 색상 모드 결정
+  const actualMode =
+    mode === "auto" ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light") : mode;
 
   return createTheme({
     palette: {
-      mode: themeMode,
+      mode: actualMode,
       primary: {
-        main: isLight ? "#2c2c2c" : "#90caf9", // 라이트: 펭귄 검은색, 다크: 파란색
-        light: isLight ? "#525252" : "#bbdefb",
-        dark: isLight ? "#1a1a1a" : "#1976d2",
+        main: colors.primary,
+        light: colors.primaryLight,
+        dark: colors.primaryDark,
       },
       secondary: {
-        main: "#ffeb3b", // 펭귄 부리 노란색
-        light: "#ffff72",
-        dark: "#c8b900",
+        main: colors.secondary,
+        light: colors.secondaryLight,
+        dark: colors.secondaryDark,
       },
       background: {
-        default: isLight ? "#f8f9fa" : "#121212", // 라이트: 빙하 흰색, 다크: 어두운 배경
-        paper: isLight ? "#ffffff" : "#1e1e1e",
+        default: colors.background,
+        paper: colors.paper,
       },
       info: {
-        main: "#00bcd4", // 바다 청록색
+        main: colors.info,
       },
       success: {
-        main: "#4caf50", // 생선 초록색
+        main: colors.success,
       },
       warning: {
-        main: "#ff9800", // 따뜻한 오렌지
+        main: colors.warning,
       },
       error: {
-        main: "#f44336",
+        main: colors.error,
       },
     },
     typography: {
@@ -80,14 +90,14 @@ const createAppTheme = (themeMode: "light" | "dark") => {
       },
     },
     shape: {
-      borderRadius: 16, // 둥근 펭귄 모양
+      borderRadius: 16, // 둥근 모양
     },
     components: {
       MuiButton: {
         styleOverrides: {
           root: {
             textTransform: "none",
-            borderRadius: 20, // 펭귄처럼 둥글게
+            borderRadius: 20, // 둥글게
             fontWeight: 600,
           },
         },
@@ -96,7 +106,7 @@ const createAppTheme = (themeMode: "light" | "dark") => {
         styleOverrides: {
           root: {
             borderRadius: 20,
-            boxShadow: isLight ? "0 4px 20px rgba(0, 0, 0, 0.1)" : "0 4px 20px rgba(0, 0, 0, 0.3)",
+            boxShadow: actualMode === "light" ? "0 4px 20px rgba(0, 0, 0, 0.1)" : "0 4px 20px rgba(0, 0, 0, 0.3)",
           },
         },
       },
@@ -110,28 +120,77 @@ function App() {
   const [userAccessStatus, setUserAccessStatus] = useState<"approved" | "pending" | "rejected" | "not_found" | null>(
     null
   );
-  const [themeMode, setThemeMode] = useState<"light" | "dark">("light");
+  const [themeSettings, setThemeSettings] = useState<ThemeSettings>({
+    type: "penguin",
+    mode: "light",
+  });
+
+  // 테마 변경 함수 수정
+  const handleThemeChange = (newSettings: Partial<ThemeSettings>) => {
+    try {
+      const updatedSettings = { ...themeSettings, ...newSettings };
+      setThemeSettings(updatedSettings);
+
+      // localStorage에 저장
+      const savedSettings = localStorage.getItem("settings");
+      const settings = savedSettings ? JSON.parse(savedSettings) : {};
+      const updatedPreferences = { ...settings, theme: updatedSettings };
+      localStorage.setItem("settings", JSON.stringify(updatedPreferences));
+
+      // electron API에도 저장 (있다면)
+      if (window.electronAPI) {
+        window.electronAPI.saveData("settings", updatedPreferences);
+      }
+    } catch (error) {
+      console.error("테마 변경 실패:", error);
+    }
+  };
 
   // 테마 설정 로드
   useEffect(() => {
-    const loadTheme = () => {
+    const loadTheme = async () => {
       try {
+        // 먼저 electron API에서 시도 (있다면)
+        if (window.electronAPI) {
+          const result = await window.electronAPI.loadData("settings");
+          if (result.success && result.data && result.data.theme) {
+            const userTheme = result.data.theme;
+
+            // 이전 버전 호환성 체크
+            if (typeof userTheme === "string") {
+              // 이전 버전: "light" | "dark" | "auto"
+              setThemeSettings({
+                type: "penguin",
+                mode: userTheme as ColorMode,
+              });
+            } else {
+              // 새 버전: ThemeSettings 객체
+              setThemeSettings(userTheme);
+            }
+            return;
+          }
+        }
+
+        // fallback: localStorage에서 로드
         const savedSettings = localStorage.getItem("settings");
         if (savedSettings) {
           const settings = JSON.parse(savedSettings);
           const userTheme = settings.theme;
 
-          if (userTheme === "auto") {
-            // 시스템 설정 따라가기
-            const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-            setThemeMode(systemTheme);
-          } else {
-            setThemeMode(userTheme || "light");
+          if (typeof userTheme === "string") {
+            // 이전 버전 호환성
+            setThemeSettings({
+              type: "penguin",
+              mode: userTheme as ColorMode,
+            });
+          } else if (userTheme) {
+            // 새 버전
+            setThemeSettings(userTheme);
           }
         }
       } catch (error) {
         console.error("테마 설정 로드 실패:", error);
-        setThemeMode("light");
+        setThemeSettings({ type: "penguin", mode: "light" });
       }
     };
 
@@ -139,21 +198,23 @@ function App() {
 
     // 시스템 테마 변경 감지
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-    const handleThemeChange = () => {
-      const savedSettings = localStorage.getItem("settings");
-      if (savedSettings) {
-        const settings = JSON.parse(savedSettings);
-        if (settings.theme === "auto") {
-          setThemeMode(mediaQuery.matches ? "dark" : "light");
+    const handleSystemThemeChange = async () => {
+      try {
+        // auto 모드일 때만 업데이트
+        if (themeSettings.mode === "auto") {
+          setThemeSettings((prev) => ({ ...prev })); // 리렌더링 트리거
         }
+      } catch (error) {
+        console.error("시스템 테마 변경 감지 실패:", error);
       }
     };
 
-    mediaQuery.addEventListener("change", handleThemeChange);
-    return () => mediaQuery.removeEventListener("change", handleThemeChange);
-  }, []);
+    mediaQuery.addEventListener("change", handleSystemThemeChange);
+    return () => mediaQuery.removeEventListener("change", handleSystemThemeChange);
+  }, [themeSettings.mode]);
 
-  const theme = createAppTheme(themeMode);
+  const theme = createAppTheme(themeSettings);
+  const themeConfig = getThemeConfig(themeSettings.type);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChange(async (user) => {
@@ -189,7 +250,7 @@ function App() {
         >
           <CircularProgress size={60} sx={{ mb: 2 }} />
           <Typography variant="h6" color="white">
-            로딩 중... 🐧
+            {themeConfig.concepts.loading}
           </Typography>
         </Box>
       </ThemeProvider>
@@ -215,17 +276,26 @@ function App() {
           <CssBaseline />
           <Router>
             <Box sx={{ height: "100vh", display: "flex" }}>
-              <Layout user={user}>
+              <Layout user={user} themeConfig={themeConfig}>
                 <Routes>
-                  <Route path="/" element={<Dashboard />} />
-                  <Route path="/condition" element={<ConditionTracker />} />
-                  <Route path="/projects" element={<ProjectManager />} />
+                  <Route path="/" element={<Dashboard themeConfig={themeConfig} />} />
+                  <Route path="/condition" element={<ConditionTracker themeConfig={themeConfig} />} />
+                  <Route path="/analytics" element={<Analytics themeConfig={themeConfig} />} />
+                  <Route path="/projects" element={<ProjectManager themeConfig={themeConfig} />} />
+                  <Route path="/pomodoro" element={<Pomodoro themeConfig={themeConfig} />} />
                   <Route path="/chat" element={<Chat />} />
-                  <Route path="/analytics" element={<Analytics />} />
                   <Route path="/profile" element={<Profile />} />
-                  <Route path="/admin" element={<AdminPanel />} />
-                  <Route path="/settings" element={<Settings />} />
-                  <Route path="/pomodoro" element={<Pomodoro />} />
+                  <Route
+                    path="/settings"
+                    element={
+                      <Settings
+                        onThemeChange={handleThemeChange}
+                        themeSettings={themeSettings}
+                        themeConfig={themeConfig}
+                      />
+                    }
+                  />
+                  {isAdmin(user.email) && <Route path="/admin" element={<AdminPanel />} />}
                 </Routes>
               </Layout>
             </Box>
@@ -260,7 +330,7 @@ const AccessStatusScreen: React.FC<{
             <Typography variant="body1" sx={{ mb: 3 }}>
               안녕하세요, {user.displayName}님! 🐧
               <br />
-              펭귄 비서 접근 권한 요청이 검토 중입니다.
+              개인 비서 접근 권한 요청이 검토 중입니다.
               <br />
               관리자의 승인을 기다려주세요.
             </Typography>
@@ -279,7 +349,7 @@ const AccessStatusScreen: React.FC<{
             <Typography variant="body1" sx={{ mb: 3 }}>
               죄송합니다, {user.displayName}님.
               <br />
-              펭귄 비서 접근 권한이 거부되었습니다. ❄️
+              개인 비서 접근 권한이 거부되었습니다.
               <br />
               자세한 사항은 관리자에게 문의해주세요.
             </Typography>
@@ -362,7 +432,7 @@ const AccessRequestForm: React.FC<{ user: User }> = ({ user }) => {
         <Typography variant="body1" sx={{ mb: 3 }}>
           안녕하세요, {user.displayName}님! 🎉
           <br />
-          펭귄 비서 접근 권한 요청이 성공적으로 전송되었습니다.
+          개인 비서 접근 권한 요청이 성공적으로 전송되었습니다.
           <br />
           관리자의 승인을 기다려주세요.
         </Typography>
@@ -377,12 +447,12 @@ const AccessRequestForm: React.FC<{ user: User }> = ({ user }) => {
     <Box sx={{ maxWidth: 600 }}>
       <Box sx={{ textAlign: "center", mb: 4 }}>
         <Typography variant="h4" gutterBottom>
-          🐧 펭귄 비서 접근 권한 요청
+          🤖 개인 비서 접근 권한 요청
         </Typography>
         <Typography variant="body1" color="textSecondary">
           안녕하세요, {user.displayName}님!
           <br />
-          펭귄 비서를 이용하기 위해 접근 권한을 요청해주세요.
+          개인 비서를 이용하기 위해 접근 권한을 요청해주세요.
         </Typography>
       </Box>
 
@@ -404,7 +474,7 @@ const AccessRequestForm: React.FC<{ user: User }> = ({ user }) => {
           multiline
           rows={4}
           label="사용 목적 (선택사항)"
-          placeholder="펭귄 비서를 어떤 용도로 사용하고 싶으신지 간단히 설명해주세요..."
+          placeholder="개인 비서를 어떤 용도로 사용하고 싶으신지 간단히 설명해주세요..."
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           sx={{ mb: 3 }}

@@ -13,234 +13,336 @@ import {
   ListItem,
   ListItemText,
   Avatar,
+  Alert,
+  Button,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
   Divider,
 } from "@mui/material";
 import {
   Timeline,
-  TrendingUp,
   Schedule,
   CalendarMonth,
-  Psychology,
-  EmojiEmotions,
-  Lightbulb,
   Timer,
   Assignment,
   AccessTime,
+  ExpandMore,
+  Refresh,
+  TrendingUp,
+  PieChart,
+  Assessment,
 } from "@mui/icons-material";
-import { ConditionEntry, ConditionLevel, WeeklyPomodoroStats } from "../types";
+import { ConditionEntry, ConditionLevel, WeeklyPomodoroStats, PomodoroSession, ThemeConfigExtended } from "../types";
+import { loadUserData, getCurrentUser } from "../utils/firebase";
 import dayjs from "dayjs";
-import { loadUserData, getCurrentUser, getWeeklyPomodoroStats } from "../utils/firebase";
 
-const Analytics: React.FC = () => {
+interface AnalyticsProps {
+  themeConfig?: ThemeConfigExtended;
+}
+
+interface DailyPomodoroDetail {
+  date: string;
+  sessions: PomodoroSession[];
+  totalMinutes: number;
+  projectBreakdown: { [projectId: string]: { title: string; minutes: number; sessions: number } };
+}
+
+interface ProjectTimeStats {
+  projectId: string;
+  projectTitle: string;
+  totalMinutes: number;
+  totalSessions: number;
+  percentage: number;
+  tasks: { [taskId: string]: { title: string; minutes: number; sessions: number } };
+}
+
+const Analytics: React.FC<AnalyticsProps> = ({ themeConfig }) => {
   const theme = useTheme();
   const [conditions, setConditions] = useState<ConditionEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [pomodoroStats, setPomodoroStats] = useState<WeeklyPomodoroStats | null>(null);
   const [pomodoroLoading, setPomodoroLoading] = useState(true);
   const [selectedWeek, setSelectedWeek] = useState<string>(dayjs().startOf("week").format("YYYY-MM-DD"));
+  const [dailyDetails, setDailyDetails] = useState<DailyPomodoroDetail[]>([]);
+  const [projectStats, setProjectStats] = useState<ProjectTimeStats[]>([]);
+  const [allPomodoroSessions, setAllPomodoroSessions] = useState<PomodoroSession[]>([]);
 
-  const conditionLevels: Record<ConditionLevel, { emoji: string; label: string; score: number; color: string }> = {
-    excellent: { emoji: "🐧", label: "최고", score: 5, color: theme.palette.success.dark },
-    good: { emoji: "🐟", label: "좋음", score: 4, color: theme.palette.success.main },
-    normal: { emoji: "❄️", label: "보통", score: 3, color: theme.palette.warning.main },
-    tired: { emoji: "🧊", label: "피곤", score: 2, color: theme.palette.warning.dark },
-    exhausted: { emoji: "🐻‍❄️", label: "매우 피곤", score: 1, color: theme.palette.error.main },
+  // 테마별 컨디션 레벨
+  const getConditionLevels = () => {
+    const baseConfig = {
+      excellent: { label: "최고", score: 5, color: theme.palette.success.dark },
+      good: { label: "좋음", score: 4, color: theme.palette.success.main },
+      normal: { label: "보통", score: 3, color: theme.palette.warning.main },
+      tired: { label: "피곤", score: 2, color: theme.palette.warning.dark },
+      exhausted: { label: "매우 피곤", score: 1, color: theme.palette.error.main },
+    };
+
+    // 테마별 이모지
+    const themeEmojis = {
+      penguin: {
+        excellent: "🐧",
+        good: "🐟",
+        normal: "❄️",
+        tired: "🧊",
+        exhausted: "🐻‍❄️",
+      },
+      "desert-fox": {
+        excellent: "🦊",
+        good: "🌵",
+        normal: "☀️",
+        tired: "🏜️",
+        exhausted: "🔥",
+      },
+      sheep: {
+        excellent: "🐑",
+        good: "🌿",
+        normal: "🌱",
+        tired: "🍃",
+        exhausted: "🌾",
+      },
+      cat: {
+        excellent: "🐱",
+        good: "🐟",
+        normal: "🧶",
+        tired: "🐾",
+        exhausted: "😿",
+      },
+    };
+
+    const currentTheme = themeConfig?.id || "penguin";
+    const emojis = themeEmojis[currentTheme] || themeEmojis.penguin;
+
+    return Object.keys(baseConfig).reduce((acc, key) => {
+      acc[key as ConditionLevel] = {
+        ...baseConfig[key as ConditionLevel],
+        emoji: emojis[key as ConditionLevel],
+      };
+      return acc;
+    }, {} as Record<ConditionLevel, { emoji: string; label: string; score: number; color: string }>);
   };
+
+  const conditionLevels = getConditionLevels();
 
   useEffect(() => {
     loadConditions();
     loadPomodoroData();
+    loadDetailedPomodoroData();
   }, [selectedWeek]);
 
   const loadConditions = async () => {
     try {
+      setLoading(true);
       const user = getCurrentUser();
       if (user) {
         const result = await loadUserData(user.uid, "conditions");
         if (result.success && result.data) {
           setConditions(result.data);
-        } else {
-          setConditions([]);
-        }
-      } else {
-        // 로그인되지 않은 경우 fallback
-        const savedData = localStorage.getItem("conditions");
-        if (savedData) {
-          setConditions(JSON.parse(savedData));
-        } else {
-          setConditions([]);
         }
       }
     } catch (error) {
       console.error("컨디션 데이터 로드 실패:", error);
-      setConditions([]);
     } finally {
       setLoading(false);
     }
   };
 
   const loadPomodoroData = async () => {
-    setPomodoroLoading(true);
     try {
+      setPomodoroLoading(true);
       const user = getCurrentUser();
       if (user) {
-        const result = await getWeeklyPomodoroStats(user.uid, selectedWeek);
+        const result = await loadUserData(user.uid, "pomodoroStats");
         if (result.success && result.data) {
-          setPomodoroStats(result.data);
-        } else {
-          setPomodoroStats(null);
+          // 선택된 주차의 데이터 찾기
+          const weekData = result.data.find((week: WeeklyPomodoroStats) => week.weekStart === selectedWeek);
+          setPomodoroStats(weekData || null);
         }
       }
     } catch (error) {
-      console.error("뽀모도로 데이터 로드 실패:", error);
-      setPomodoroStats(null);
+      console.error("뽀모도로 통계 로드 실패:", error);
     } finally {
       setPomodoroLoading(false);
     }
   };
 
-  const getScoreForCondition = (level: ConditionLevel): number => {
-    return conditionLevels[level].score;
-  };
+  const loadDetailedPomodoroData = async () => {
+    try {
+      const user = getCurrentUser();
+      if (user) {
+        const result = await loadUserData(user.uid, "pomodoroSessions");
+        if (result.success && result.data) {
+          const sessions = result.data as PomodoroSession[];
+          setAllPomodoroSessions(sessions);
 
-  const getConditionInfo = (level: ConditionLevel) => {
-    return conditionLevels[level];
-  };
+          // 선택된 주차의 세션들 필터링
+          const weekStart = dayjs(selectedWeek);
+          const weekEnd = weekStart.add(6, "day");
 
-  const getHourlyStats = () => {
-    const hourlyData: Record<number, { total: number; count: number; average: number }> = {};
+          const weekSessions = sessions.filter((session) => {
+            const sessionDate = dayjs(session.startTime);
+            return (
+              sessionDate.isAfter(weekStart.subtract(1, "day")) &&
+              sessionDate.isBefore(weekEnd.add(1, "day")) &&
+              session.completed &&
+              session.sessionType === "work"
+            );
+          });
 
-    // 0-23시간 초기화
-    for (let i = 0; i < 24; i++) {
-      hourlyData[i] = { total: 0, count: 0, average: 0 };
-    }
+          // 일별 상세 데이터 생성
+          const dailyData: DailyPomodoroDetail[] = [];
+          for (let i = 0; i < 7; i++) {
+            const date = weekStart.add(i, "day");
+            const dayStr = date.format("YYYY-MM-DD");
+            const daySessions = weekSessions.filter(
+              (session) => dayjs(session.startTime).format("YYYY-MM-DD") === dayStr
+            );
 
-    conditions.forEach((condition) => {
-      const hour = dayjs(condition.date).hour();
-      const score = getScoreForCondition(condition.condition);
-      hourlyData[hour].total += score;
-      hourlyData[hour].count += 1;
-    });
+            const projectBreakdown: { [projectId: string]: { title: string; minutes: number; sessions: number } } = {};
+            let totalMinutes = 0;
 
-    // 평균 계산
-    Object.keys(hourlyData).forEach((hour) => {
-      const h = parseInt(hour);
-      if (hourlyData[h].count > 0) {
-        hourlyData[h].average = hourlyData[h].total / hourlyData[h].count;
+            daySessions.forEach((session) => {
+              totalMinutes += session.duration;
+
+              if (!projectBreakdown[session.projectId]) {
+                projectBreakdown[session.projectId] = {
+                  title: session.projectTitle,
+                  minutes: 0,
+                  sessions: 0,
+                };
+              }
+
+              projectBreakdown[session.projectId].minutes += session.duration;
+              projectBreakdown[session.projectId].sessions += 1;
+            });
+
+            dailyData.push({
+              date: dayStr,
+              sessions: daySessions,
+              totalMinutes,
+              projectBreakdown,
+            });
+          }
+
+          setDailyDetails(dailyData);
+
+          // 프로젝트별 통계 생성
+          const projectMap: { [projectId: string]: ProjectTimeStats } = {};
+          const totalWeekMinutes = weekSessions.reduce((sum, session) => sum + session.duration, 0);
+
+          weekSessions.forEach((session) => {
+            if (!projectMap[session.projectId]) {
+              projectMap[session.projectId] = {
+                projectId: session.projectId,
+                projectTitle: session.projectTitle,
+                totalMinutes: 0,
+                totalSessions: 0,
+                percentage: 0,
+                tasks: {},
+              };
+            }
+
+            const project = projectMap[session.projectId];
+            project.totalMinutes += session.duration;
+            project.totalSessions += 1;
+
+            if (!project.tasks[session.taskId]) {
+              project.tasks[session.taskId] = {
+                title: session.taskTitle,
+                minutes: 0,
+                sessions: 0,
+              };
+            }
+
+            project.tasks[session.taskId].minutes += session.duration;
+            project.tasks[session.taskId].sessions += 1;
+          });
+
+          // 비율 계산 및 정렬
+          const projectStatsArray = Object.values(projectMap)
+            .map((project) => ({
+              ...project,
+              percentage: totalWeekMinutes > 0 ? (project.totalMinutes / totalWeekMinutes) * 100 : 0,
+            }))
+            .sort((a, b) => b.totalMinutes - a.totalMinutes);
+
+          setProjectStats(projectStatsArray);
+        }
       }
-    });
-
-    return hourlyData;
+    } catch (error) {
+      console.error("상세 뽀모도로 데이터 로드 실패:", error);
+    }
   };
 
-  const getWeeklyStats = () => {
-    const weeklyData: Record<number, { total: number; count: number; average: number }> = {};
+  // 컨디션 분석
+  const getWeeklyConditionStats = () => {
+    if (!conditions.length) return { weeklyStats: {}, totalEntries: 0, averageScore: 0 };
 
-    // 0-6 (일-토) 초기화
+    const weekStart = dayjs(selectedWeek);
+    const weekEnd = weekStart.add(6, "day");
+
+    const weekConditions = conditions.filter((condition) => {
+      const conditionDate = dayjs(condition.date);
+      return conditionDate.isAfter(weekStart.subtract(1, "day")) && conditionDate.isBefore(weekEnd.add(1, "day"));
+    });
+
+    const weeklyStats: { [day: number]: { count: number; total: number; average: number } } = {};
+    let totalScore = 0;
+    let totalEntries = weekConditions.length;
+
     for (let i = 0; i < 7; i++) {
-      weeklyData[i] = { total: 0, count: 0, average: 0 };
+      weeklyStats[i] = { count: 0, total: 0, average: 0 };
     }
 
-    conditions.forEach((condition) => {
-      const dayOfWeek = dayjs(condition.date).day();
-      const score = getScoreForCondition(condition.condition);
-      weeklyData[dayOfWeek].total += score;
-      weeklyData[dayOfWeek].count += 1;
+    weekConditions.forEach((condition) => {
+      const day = dayjs(condition.date).day();
+      const score = conditionLevels[condition.condition].score;
+      weeklyStats[day].count++;
+      weeklyStats[day].total += score;
+      totalScore += score;
     });
 
-    // 평균 계산
-    Object.keys(weeklyData).forEach((day) => {
-      const d = parseInt(day);
-      if (weeklyData[d].count > 0) {
-        weeklyData[d].average = weeklyData[d].total / weeklyData[d].count;
+    Object.keys(weeklyStats).forEach((day) => {
+      const dayNum = parseInt(day);
+      if (weeklyStats[dayNum].count > 0) {
+        weeklyStats[dayNum].average = weeklyStats[dayNum].total / weeklyStats[dayNum].count;
       }
     });
 
-    return weeklyData;
+    const averageScore = totalEntries > 0 ? totalScore / totalEntries : 0;
+
+    return { weeklyStats, totalEntries, averageScore };
   };
 
-  const getCurrentTimeRecommendation = () => {
-    const now = dayjs();
-    const currentHour = now.hour();
-    const currentDay = now.day();
-    const hourlyStats = getHourlyStats();
-    const weeklyStats = getWeeklyStats();
-
-    const hourAvg = hourlyStats[currentHour]?.average || 0;
-    const dayAvg = weeklyStats[currentDay]?.average || 0;
-    const overallAvg = (hourAvg + dayAvg) / 2;
-
-    let recommendation = "";
-    let color = theme.palette.text.secondary;
-    let emoji = "🤔";
-
-    if (overallAvg >= 4) {
-      recommendation = "지금은 펭귄이 가장 활발한 시간이에요! 중요한 물고기를 잡으세요 🐟";
-      color = theme.palette.success.main;
-      emoji = "🐧";
-    } else if (overallAvg >= 3.5) {
-      recommendation = "좋은 컨디션이에요! 빙하 위에서 집중해보세요 🏔️";
-      color = theme.palette.success.main;
-      emoji = "🐟";
-    } else if (overallAvg >= 2.5) {
-      recommendation = "보통 컨디션이에요. 눈송이처럼 가벼운 일을 추천해요 ❄️";
-      color = theme.palette.warning.main;
-      emoji = "❄️";
-    } else if (overallAvg >= 1.5) {
-      recommendation = "좀 피곤한 시간이에요. 빙하에서 휴식을 취하세요 🧊";
-      color = theme.palette.warning.dark;
-      emoji = "🧊";
-    } else {
-      recommendation = "북극곰처럼 깊은 잠에 들 시간이에요. 충분한 휴식을 취하세요 💤";
-      color = theme.palette.error.main;
-      emoji = "🐻‍❄️";
-    }
-
-    return { recommendation, color, emoji, score: overallAvg };
-  };
-
-  const getOverallStats = () => {
-    if (conditions.length === 0) {
-      return { average: 0, total: 0, distribution: {} };
-    }
-
-    const total = conditions.reduce((sum, condition) => sum + getScoreForCondition(condition.condition), 0);
-    const average = total / conditions.length;
-
-    const distribution: Record<ConditionLevel, number> = {
-      excellent: 0,
-      good: 0,
-      normal: 0,
-      tired: 0,
-      exhausted: 0,
-    };
-
-    conditions.forEach((condition) => {
-      distribution[condition.condition]++;
-    });
-
-    return { average, total: conditions.length, distribution };
-  };
-
-  if (loading) {
-    return (
-      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "50vh" }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
-
-  const hourlyStats = getHourlyStats();
-  const weeklyStats = getWeeklyStats();
-  const currentRecommendation = getCurrentTimeRecommendation();
-  const overallStats = getOverallStats();
-
+  const { weeklyStats, totalEntries, averageScore } = getWeeklyConditionStats();
   const dayNames = ["일", "월", "화", "수", "목", "금", "토"];
 
-  // 시간대별 최고/최저 찾기
-  const bestHour = Object.entries(hourlyStats)
-    .filter(([_, data]) => data.count > 0)
-    .sort((a, b) => b[1].average - a[1].average)[0];
+  const formatTime = (minutes: number) => {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    if (hours > 0) {
+      return `${hours}시간 ${mins}분`;
+    }
+    return `${mins}분`;
+  };
+
+  const getThemeBasedTitle = () => {
+    const environment = themeConfig?.concepts?.environment || "빙하";
+    const animal = themeConfig?.concepts?.animal || "펭귄";
+    return `📊 ${environment} 분석`;
+  };
+
+  const getThemeBasedDescription = () => {
+    const animal = themeConfig?.concepts?.animal || "펭귄";
+    return `${animal}의 생활 패턴과 뽀모도로 집중 세션을 분석해서 최적의 시간을 찾아드려요`;
+  };
 
   const bestDay = Object.entries(weeklyStats)
     .filter(([_, data]) => data.count > 0)
@@ -251,10 +353,10 @@ const Analytics: React.FC = () => {
       {/* 헤더 */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" fontWeight="bold" gutterBottom>
-          📊 빙하 분석
+          {getThemeBasedTitle()}
         </Typography>
         <Typography variant="body1" color="textSecondary">
-          펭귄의 생활 패턴과 뽀모도로 집중 세션을 분석해서 최적의 시간을 찾아드려요
+          {getThemeBasedDescription()}
         </Typography>
       </Box>
 
@@ -278,280 +380,278 @@ const Analytics: React.FC = () => {
             variant="outlined"
             size="small"
           />
+          <Button
+            size="small"
+            startIcon={<Refresh />}
+            onClick={() => {
+              loadPomodoroData();
+              loadDetailedPomodoroData();
+            }}
+          >
+            새로고침
+          </Button>
         </Box>
 
         {pomodoroLoading ? (
-          <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "200px" }}>
+          <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
             <CircularProgress />
           </Box>
-        ) : pomodoroStats ? (
+        ) : (
           <Grid container spacing={3}>
-            {/* 주간 뽀모도로 개요 */}
-            <Grid item xs={12} md={4}>
-              <Card sx={{ height: "100%" }}>
-                <CardContent sx={{ textAlign: "center" }}>
-                  <Timer sx={{ fontSize: 48, color: theme.palette.success.main, mb: 2 }} />
-                  <Typography variant="h6" fontWeight="bold" gutterBottom>
-                    완료된 세션
+            {/* 주간 요약 */}
+            <Grid item xs={12} md={6} lg={3}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <Timer color="primary" /> 주간 총 집중시간
                   </Typography>
-                  <Typography variant="h3" color="success.main" gutterBottom>
-                    {pomodoroStats.totalSessions}
+                  <Typography variant="h4" color="primary" fontWeight="bold">
+                    {formatTime(projectStats.reduce((sum, project) => sum + project.totalMinutes, 0))}
                   </Typography>
-                  <Typography variant="body2" color="textSecondary">
-                    집중 {pomodoroStats.workSessions}회 · 휴식 {pomodoroStats.breakSessions}회
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-
-            <Grid item xs={12} md={4}>
-              <Card sx={{ height: "100%" }}>
-                <CardContent sx={{ textAlign: "center" }}>
-                  <AccessTime sx={{ fontSize: 48, color: theme.palette.warning.main, mb: 2 }} />
-                  <Typography variant="h6" fontWeight="bold" gutterBottom>
-                    총 집중 시간
-                  </Typography>
-                  <Typography variant="h3" color="warning.main" gutterBottom>
-                    {Math.floor(pomodoroStats.totalMinutes / 60)}
-                  </Typography>
-                  <Typography variant="body2" color="textSecondary">
-                    시간 {pomodoroStats.totalMinutes % 60}분
+                  <Typography variant="body2" color="text.secondary">
+                    총 {projectStats.reduce((sum, project) => sum + project.totalSessions, 0)}회 세션
                   </Typography>
                 </CardContent>
               </Card>
             </Grid>
 
-            <Grid item xs={12} md={4}>
-              <Card sx={{ height: "100%" }}>
-                <CardContent sx={{ textAlign: "center" }}>
-                  <Assignment sx={{ fontSize: 48, color: theme.palette.primary.main, mb: 2 }} />
-                  <Typography variant="h6" fontWeight="bold" gutterBottom>
-                    진행 프로젝트
+            <Grid item xs={12} md={6} lg={3}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <Assignment color="primary" /> 활동한 프로젝트
                   </Typography>
-                  <Typography variant="h3" color="primary" gutterBottom>
-                    {pomodoroStats.projectBreakdown.length}
+                  <Typography variant="h4" color="primary" fontWeight="bold">
+                    {projectStats.length}개
                   </Typography>
-                  <Typography variant="body2" color="textSecondary">
-                    개의 프로젝트 작업
+                  <Typography variant="body2" color="text.secondary">
+                    이번 주 작업 프로젝트
                   </Typography>
                 </CardContent>
               </Card>
             </Grid>
 
-            {/* 프로젝트별 상세 */}
+            <Grid item xs={12} md={6} lg={3}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <TrendingUp color="primary" /> 일평균 집중시간
+                  </Typography>
+                  <Typography variant="h4" color="primary" fontWeight="bold">
+                    {formatTime(Math.round(projectStats.reduce((sum, project) => sum + project.totalMinutes, 0) / 7))}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    하루 평균 집중시간
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            <Grid item xs={12} md={6} lg={3}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <AccessTime color="primary" /> 가장 활발한 날
+                  </Typography>
+                  <Typography variant="h4" color="primary" fontWeight="bold">
+                    {dailyDetails.length > 0
+                      ? dayNames[dayjs(dailyDetails.sort((a, b) => b.totalMinutes - a.totalMinutes)[0]?.date).day()] +
+                        "요일"
+                      : "-"}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {dailyDetails.length > 0
+                      ? formatTime(Math.max(...dailyDetails.map((d) => d.totalMinutes)))
+                      : "데이터 없음"}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* 프로젝트별 시간 투자 비율 */}
+            <Grid item xs={12} lg={8}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <PieChart color="primary" /> 프로젝트별 시간 투자 비율
+                  </Typography>
+                  {projectStats.length > 0 ? (
+                    <Box>
+                      {projectStats.map((project, index) => (
+                        <Box key={project.projectId} sx={{ mb: 2 }}>
+                          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
+                            <Typography variant="body2" fontWeight="medium">
+                              {project.projectTitle}
+                            </Typography>
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                              <Chip label={`${project.percentage.toFixed(1)}%`} size="small" variant="outlined" />
+                              <Typography variant="body2" color="text.secondary">
+                                {formatTime(project.totalMinutes)}
+                              </Typography>
+                            </Box>
+                          </Box>
+                          <LinearProgress
+                            variant="determinate"
+                            value={project.percentage}
+                            sx={{
+                              height: 8,
+                              borderRadius: 4,
+                              backgroundColor: theme.palette.grey[200],
+                              "& .MuiLinearProgress-bar": {
+                                borderRadius: 4,
+                                backgroundColor: theme.palette.primary.main,
+                              },
+                            }}
+                          />
+                        </Box>
+                      ))}
+                    </Box>
+                  ) : (
+                    <Alert severity="info">
+                      이번 주에는 뽀모도로 세션이 없어요. 집중 시간을 기록해보세요! {themeConfig?.emoji}
+                    </Alert>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* 일별 활동 요약 */}
+            <Grid item xs={12} lg={4}>
+              <Card sx={{ height: "100%" }}>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <CalendarMonth color="primary" /> 일별 활동 요약
+                  </Typography>
+                  <List dense>
+                    {dailyDetails.map((day, index) => (
+                      <ListItem key={day.date} sx={{ px: 0 }}>
+                        <ListItemText
+                          primary={
+                            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <Typography variant="body2">
+                                {dayNames[dayjs(day.date).day()]}요일 ({dayjs(day.date).format("M/D")})
+                              </Typography>
+                              <Chip
+                                label={day.totalMinutes > 0 ? formatTime(day.totalMinutes) : "휴식"}
+                                size="small"
+                                color={day.totalMinutes > 0 ? "primary" : "default"}
+                                variant={day.totalMinutes > 0 ? "filled" : "outlined"}
+                              />
+                            </Box>
+                          }
+                          secondary={
+                            day.sessions.length > 0
+                              ? `${day.sessions.length}회 세션 • ${Object.keys(day.projectBreakdown).length}개 프로젝트`
+                              : "활동 없음"
+                          }
+                        />
+                      </ListItem>
+                    ))}
+                  </List>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* 상세 일별 분석 (아코디언) */}
             <Grid item xs={12}>
               <Card>
                 <CardContent>
-                  <Typography
-                    variant="h6"
-                    fontWeight="bold"
-                    gutterBottom
-                    sx={{ display: "flex", alignItems: "center", gap: 1 }}
-                  >
-                    📋 프로젝트별 작업 내역 (주간보고용)
+                  <Typography variant="h6" gutterBottom sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <Assessment color="primary" /> 📅 상세 일별 활동 분석
                   </Typography>
-                  {pomodoroStats.projectBreakdown.map((project) => (
-                    <Box key={project.projectId} sx={{ mb: 3, p: 2, bgcolor: "grey.50", borderRadius: 2 }}>
-                      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
-                        <Typography variant="subtitle1" fontWeight="bold">
-                          📁 {project.projectTitle}
-                        </Typography>
-                        <Chip
-                          label={`${project.sessions}세션 · ${Math.floor(project.minutes / 60)}시간 ${
-                            project.minutes % 60
-                          }분`}
-                          color="primary"
-                          size="small"
-                        />
-                      </Box>
-                      <List dense>
-                        {project.tasks.map((task) => (
-                          <ListItem key={task.taskId} sx={{ pl: 2 }}>
-                            <ListItemText
-                              primary={
-                                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                  <Typography variant="body2">✅ {task.taskTitle}</Typography>
-                                  <Typography variant="caption" color="text.secondary">
-                                    {task.sessions}세션 · {Math.floor(task.minutes / 60)}시간 {task.minutes % 60}분
+                  {dailyDetails.some((day) => day.sessions.length > 0) ? (
+                    dailyDetails
+                      .filter((day) => day.sessions.length > 0)
+                      .map((day) => (
+                        <Accordion key={day.date} sx={{ mt: 1 }}>
+                          <AccordionSummary expandIcon={<ExpandMore />}>
+                            <Box
+                              sx={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                width: "100%",
+                                pr: 2,
+                              }}
+                            >
+                              <Typography variant="body1" fontWeight="medium">
+                                {dayNames[dayjs(day.date).day()]}요일 ({dayjs(day.date).format("YYYY년 M월 D일")})
+                              </Typography>
+                              <Box sx={{ display: "flex", gap: 1 }}>
+                                <Chip label={`${formatTime(day.totalMinutes)}`} size="small" color="primary" />
+                                <Chip label={`${day.sessions.length}회 세션`} size="small" variant="outlined" />
+                              </Box>
+                            </Box>
+                          </AccordionSummary>
+                          <AccordionDetails>
+                            <Box>
+                              {/* 프로젝트별 활동 */}
+                              <Typography variant="subtitle2" gutterBottom sx={{ mt: 1 }}>
+                                프로젝트별 활동:
+                              </Typography>
+                              {Object.entries(day.projectBreakdown).map(([projectId, project]) => (
+                                <Box
+                                  key={projectId}
+                                  sx={{ mb: 2, pl: 2, borderLeft: `3px solid ${theme.palette.primary.main}` }}
+                                >
+                                  <Typography variant="body2" fontWeight="medium">
+                                    📁 {project.title}
+                                  </Typography>
+                                  <Typography variant="body2" color="text.secondary">
+                                    {formatTime(project.minutes)} • {project.sessions}회 세션
                                   </Typography>
                                 </Box>
-                              }
-                            />
-                          </ListItem>
-                        ))}
-                      </List>
-                    </Box>
-                  ))}
-                </CardContent>
-              </Card>
-            </Grid>
+                              ))}
 
-            {/* 일별 진행상황 */}
-            <Grid item xs={12}>
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" fontWeight="bold" gutterBottom>
-                    📅 일별 진행상황
-                  </Typography>
-                  <Grid container spacing={2}>
-                    {pomodoroStats.dailyBreakdown.map((day) => (
-                      <Grid item xs={12} sm={6} md={3} key={day.date}>
-                        <Box sx={{ p: 2, bgcolor: "primary.50", borderRadius: 2, textAlign: "center" }}>
-                          <Typography variant="body2" fontWeight="bold">
-                            {dayjs(day.date).format("M/D (dd)")}
-                          </Typography>
-                          <Typography variant="h6" color="primary">
-                            {day.sessions}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            세션 · {Math.floor(day.minutes / 60)}시간 {day.minutes % 60}분
-                          </Typography>
-                        </Box>
-                      </Grid>
-                    ))}
-                  </Grid>
+                              {/* 세션 상세 내역 */}
+                              <Divider sx={{ my: 2 }} />
+                              <Typography variant="subtitle2" gutterBottom>
+                                세션 상세 내역:
+                              </Typography>
+                              <TableContainer component={Paper} variant="outlined">
+                                <Table size="small">
+                                  <TableHead>
+                                    <TableRow>
+                                      <TableCell>시간</TableCell>
+                                      <TableCell>프로젝트</TableCell>
+                                      <TableCell>작업</TableCell>
+                                      <TableCell align="right">집중시간</TableCell>
+                                    </TableRow>
+                                  </TableHead>
+                                  <TableBody>
+                                    {day.sessions
+                                      .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
+                                      .map((session, idx) => (
+                                        <TableRow key={idx}>
+                                          <TableCell>{dayjs(session.startTime).format("HH:mm")}</TableCell>
+                                          <TableCell>{session.projectTitle}</TableCell>
+                                          <TableCell>{session.taskTitle}</TableCell>
+                                          <TableCell align="right">{session.duration}분</TableCell>
+                                        </TableRow>
+                                      ))}
+                                  </TableBody>
+                                </Table>
+                              </TableContainer>
+                            </Box>
+                          </AccordionDetails>
+                        </Accordion>
+                      ))
+                  ) : (
+                    <Alert severity="info" sx={{ mt: 2 }}>
+                      이번 주에는 뽀모도로 활동이 없어요. {themeConfig?.emoji} 타이머에서 집중 세션을 시작해보세요!
+                    </Alert>
+                  )}
                 </CardContent>
               </Card>
             </Grid>
           </Grid>
-        ) : (
-          <Card>
-            <CardContent sx={{ textAlign: "center", py: 6 }}>
-              <Timer sx={{ fontSize: 64, color: "grey.400", mb: 2 }} />
-              <Typography variant="h6" color="text.secondary" gutterBottom>
-                이번 주 뽀모도로 기록이 없습니다
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                펭귄 뽀모도로에서 집중 세션을 시작해보세요! 🐧
-              </Typography>
-            </CardContent>
-          </Card>
         )}
       </Box>
 
-      {/* ❄️ 컨디션 분석 섹션 */}
-      <Box sx={{ mb: 3 }}>
-        <Typography
-          variant="h5"
-          fontWeight="bold"
-          gutterBottom
-          sx={{
-            background: "linear-gradient(45deg, #667eea 30%, #764ba2 90%)",
-            backgroundClip: "text",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-          }}
-        >
-          ❄️ 컨디션 분석
-        </Typography>
-      </Box>
-
+      {/* 컨디션 분석 */}
       <Grid container spacing={3}>
-        {/* 현재 시간 추천 */}
-        <Grid item xs={12}>
-          <Card
-            sx={{
-              mb: 2,
-              background: `linear-gradient(135deg, ${currentRecommendation.color}20, ${currentRecommendation.color}10)`,
-            }}
-          >
-            <CardContent>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                <Avatar sx={{ bgcolor: currentRecommendation.color, width: 56, height: 56, fontSize: "1.5rem" }}>
-                  {currentRecommendation.emoji}
-                </Avatar>
-                <Box sx={{ flex: 1 }}>
-                  <Typography variant="h6" fontWeight="bold" gutterBottom>
-                    지금 이 시간 ({dayjs().format("HH:mm")}) 추천
-                  </Typography>
-                  <Typography variant="body1" color="textSecondary">
-                    {currentRecommendation.recommendation}
-                  </Typography>
-                  <Typography variant="caption" sx={{ mt: 1, display: "block" }}>
-                    예상 컨디션 점수: {currentRecommendation.score.toFixed(1)}/5.0
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        {/* 전체 통계 */}
-        <Grid item xs={12} md={4}>
-          <Card sx={{ height: "100%" }}>
-            <CardContent sx={{ textAlign: "center" }}>
-              <Timeline sx={{ fontSize: 48, color: theme.palette.primary.main, mb: 2 }} />
-              <Typography variant="h6" fontWeight="bold" gutterBottom>
-                전체 평균
-              </Typography>
-              <Typography variant="h3" color="primary" gutterBottom>
-                {overallStats.average.toFixed(1)}
-              </Typography>
-              <Typography variant="body2" color="textSecondary">
-                총 {overallStats.total}개 기록
-              </Typography>
-              <LinearProgress
-                variant="determinate"
-                value={(overallStats.average / 5) * 100}
-                sx={{ mt: 2, height: 8, borderRadius: 4 }}
-              />
-            </CardContent>
-          </Card>
-        </Grid>
-
-        {/* 최고의 시간 */}
-        <Grid item xs={12} md={4}>
-          <Card sx={{ height: "100%" }}>
-            <CardContent sx={{ textAlign: "center" }}>
-              <Schedule sx={{ fontSize: 48, color: theme.palette.success.main, mb: 2 }} />
-              <Typography variant="h6" fontWeight="bold" gutterBottom>
-                골든 타임
-              </Typography>
-              {bestHour ? (
-                <>
-                  <Typography variant="h4" color="success.main" gutterBottom>
-                    {bestHour[0]}시
-                  </Typography>
-                  <Typography variant="body2" color="textSecondary">
-                    평균 {bestHour[1].average.toFixed(1)}점
-                  </Typography>
-                  <Chip label={`${bestHour[1].count}회 기록`} size="small" sx={{ mt: 1 }} />
-                </>
-              ) : (
-                <Typography color="textSecondary">데이터 없음</Typography>
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
-
-        {/* 최고의 요일 */}
-        <Grid item xs={12} md={4}>
-          <Card sx={{ height: "100%" }}>
-            <CardContent sx={{ textAlign: "center" }}>
-              <CalendarMonth sx={{ fontSize: 48, color: theme.palette.info.main, mb: 2 }} />
-              <Typography variant="h6" fontWeight="bold" gutterBottom>
-                최고의 요일
-              </Typography>
-              {bestDay ? (
-                <>
-                  <Typography variant="h4" color="info.main" gutterBottom>
-                    {dayNames[parseInt(bestDay[0])]}요일
-                  </Typography>
-                  <Typography variant="body2" color="textSecondary">
-                    평균 {bestDay[1].average.toFixed(1)}점
-                  </Typography>
-                  <Chip label={`${bestDay[1].count}회 기록`} size="small" sx={{ mt: 1 }} />
-                </>
-              ) : (
-                <Typography color="textSecondary">데이터 없음</Typography>
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
-
-        {/* 시간대별 순위 */}
         <Grid item xs={12} md={6}>
-          <Card sx={{ height: "100%" }}>
+          <Card>
             <CardContent>
               <Typography
                 variant="h6"
@@ -559,33 +659,49 @@ const Analytics: React.FC = () => {
                 gutterBottom
                 sx={{ display: "flex", alignItems: "center", gap: 1 }}
               >
-                <Schedule /> 시간대별 컨디션 순위
+                <Timeline /> 주간 컨디션 평균
               </Typography>
-              <List dense>
-                {Object.entries(hourlyStats)
-                  .filter(([_, data]) => data.count > 0)
-                  .sort((a, b) => b[1].average - a[1].average)
-                  .slice(0, 8)
-                  .map(([hour, data], index) => (
-                    <ListItem key={hour} sx={{ px: 0 }}>
-                      <ListItemText
-                        primary={
-                          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                            <Typography variant="body2">
-                              #{index + 1} {hour}시
-                            </Typography>
-                            <Chip
-                              label={`${data.average.toFixed(1)}점`}
-                              size="small"
-                              color={data.average >= 4 ? "success" : data.average >= 3 ? "warning" : "error"}
-                            />
-                          </Box>
-                        }
-                        secondary={`${data.count}회 기록`}
-                      />
-                    </ListItem>
-                  ))}
-              </List>
+              {loading ? (
+                <CircularProgress size={24} />
+              ) : totalEntries > 0 ? (
+                <Box>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
+                    <CircularProgress
+                      variant="determinate"
+                      value={(averageScore / 5) * 100}
+                      size={60}
+                      sx={{
+                        color:
+                          averageScore >= 4
+                            ? theme.palette.success.main
+                            : averageScore >= 3
+                            ? theme.palette.warning.main
+                            : theme.palette.error.main,
+                      }}
+                    />
+                    <Box>
+                      <Typography variant="h4" fontWeight="bold">
+                        {averageScore.toFixed(1)}점
+                      </Typography>
+                      <Typography variant="body2" color="textSecondary">
+                        {totalEntries}회 기록
+                      </Typography>
+                    </Box>
+                  </Box>
+                  {bestDay && (
+                    <Alert severity="success" icon={conditionLevels.excellent.emoji}>
+                      <Typography variant="body2">
+                        <strong>{dayNames[parseInt(bestDay[0])]}요일</strong>이 가장 좋았어요! (
+                        {bestDay[1].average.toFixed(1)}점)
+                      </Typography>
+                    </Alert>
+                  )}
+                </Box>
+              ) : (
+                <Alert severity="info">
+                  이번 주 컨디션 기록이 없어요. {themeConfig?.emoji} 건강 탭에서 컨디션을 기록해보세요!
+                </Alert>
+              )}
             </CardContent>
           </Card>
         </Grid>

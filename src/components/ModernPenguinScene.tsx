@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from "react";
-import { Box, Typography } from "@mui/material";
+import { Box, Typography, useTheme } from "@mui/material";
 import * as THREE from "three";
 import { Project } from "../types";
 
@@ -10,6 +10,8 @@ interface ModernPenguinSceneProps {
 }
 
 const ModernPenguinScene: React.FC<ModernPenguinSceneProps> = ({ width = 800, height = 400, projects = [] }) => {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene>();
   const rendererRef = useRef<THREE.WebGLRenderer>();
@@ -411,7 +413,7 @@ const ModernPenguinScene: React.FC<ModernPenguinSceneProps> = ({ width = 800, he
 
     // 씬 생성
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xf0f8ff);
+    scene.background = new THREE.Color(isDark ? 0x1a202c : 0xf0f8ff); // 다크테마: 짙은 회색, 라이트테마: 밝은 하늘색
     sceneRef.current = scene;
 
     // 카메라 생성
@@ -487,12 +489,14 @@ const ModernPenguinScene: React.FC<ModernPenguinSceneProps> = ({ width = 800, he
       if (animationIdRef.current) {
         cancelAnimationFrame(animationIdRef.current);
       }
-      if (mountRef.current && renderer.domElement) {
-        mountRef.current.removeChild(renderer.domElement);
+      if (mountRef.current && rendererRef.current) {
+        mountRef.current.removeChild(rendererRef.current.domElement);
       }
-      renderer.dispose();
+      if (rendererRef.current) {
+        rendererRef.current.dispose();
+      }
     };
-  }, [width, height, projects]);
+  }, [width, height, projects, isDark]); // isDark 의존성 추가
 
   // 애니메이션 함수
   const animate = () => {
@@ -627,7 +631,9 @@ const ModernPenguinScene: React.FC<ModernPenguinSceneProps> = ({ width = 800, he
         overflow: "hidden",
         boxShadow: "0 12px 40px rgba(0, 0, 0, 0.15)",
         border: "2px solid rgba(33, 150, 243, 0.2)",
-        background: "linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)",
+        background: isDark
+          ? "linear-gradient(135deg, #1a202c 0%, #2d3748 100%)"
+          : "linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)",
         position: "relative",
         cursor: isMouseHovering ? "pointer" : "default",
         "& canvas": {

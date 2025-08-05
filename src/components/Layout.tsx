@@ -19,10 +19,6 @@ import {
   Divider,
 } from "@mui/material";
 import {
-  Dashboard as DashboardIcon,
-  FavoriteRounded as HeartIcon,
-  Assignment as ProjectIcon,
-  Chat as ChatIcon,
   Settings as SettingsIcon,
   Analytics as AnalyticsIcon,
   Person as PersonIcon,
@@ -33,14 +29,22 @@ import {
   Home as HomeIcon,
   LocalHospital as HealthIcon,
   Explore as ExploreIcon,
-  Forum as ForumIcon,
   AdminPanelSettings as AdminIcon,
   AcUnit as IceIcon,
   Timer as TimerIcon,
+  // 테마별 추가 아이콘들
+  Grass as GrassIcon,
+  Home as CatHomeIcon,
+  Pets as PetsIcon,
+  Agriculture as FarmIcon,
+  WbSunny as SunIcon,
+  SelfImprovement as MeditationIcon,
 } from "@mui/icons-material";
 import { useLocation, useNavigate } from "react-router-dom";
 import { User } from "firebase/auth";
 import { signOut, isAdmin } from "../utils/firebase";
+import { ThemeConfigExtended } from "../types";
+import { isThemeType } from "../config/themes";
 
 const DRAWER_WIDTH = 180;
 const MOBILE_DRAWER_WIDTH = 280; // 모바일에서는 조금 더 넓게
@@ -48,9 +52,10 @@ const MOBILE_DRAWER_WIDTH = 280; // 모바일에서는 조금 더 넓게
 interface LayoutProps {
   children: React.ReactNode;
   user: User;
+  themeConfig?: ThemeConfigExtended;
 }
 
-const Layout: React.FC<LayoutProps> = ({ children, user }) => {
+const Layout: React.FC<LayoutProps> = ({ children, user, themeConfig }) => {
   const theme = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
@@ -79,88 +84,236 @@ const Layout: React.FC<LayoutProps> = ({ children, user }) => {
     }
   };
 
-  const menuItems = [
-    {
-      text: "빙하 기지",
-      icon: <HomeIcon />,
-      path: "/",
-      emoji: "🏔️",
-      color: theme.palette.primary.main,
-      description: "펭귄 비서의 메인 대시보드",
-    },
-    {
-      text: "빙하 건강",
-      icon: <HealthIcon />,
-      path: "/condition",
-      emoji: "🐧",
-      color: theme.palette.success.main,
-      description: "건강 상태 추적 및 관리",
-    },
-    {
-      text: "빙하 분석",
-      icon: <AnalyticsIcon />,
-      path: "/analytics",
-      emoji: "📊",
-      color: theme.palette.info.main,
-      description: "데이터 분석 및 인사이트",
-    },
-    {
-      text: "펭귄 프로필",
-      icon: <PersonIcon />,
-      path: "/profile",
-      emoji: "🐧",
-      color: theme.palette.secondary.main,
-      description: "개인 정보 및 설정",
-    },
-    {
-      text: "빙하 탐험",
-      icon: <ExploreIcon />,
-      path: "/projects",
-      emoji: "🗺️",
-      color: theme.palette.warning.main,
-      description: "프로젝트 관리 및 추적",
-    },
-    {
-      text: "펭귄 뽀모도로",
-      icon: <TimerIcon />,
-      path: "/pomodoro",
-      emoji: "🍅",
-      color: theme.palette.success.main,
-      description: "집중 타이머로 생산성 향상",
-    },
-    // {
-    //   text: "펭귄 소통",
-    //   icon: <ForumIcon />,
-    //   path: "/chat",
-    //   emoji: "💬",
-    //   color: theme.palette.primary.dark,
-    //   description: "AI와 대화하기",
-    // },
-    ...(isUserAdmin
-      ? [
-          {
-            text: "빙하 관리소",
-            icon: <AdminIcon />,
-            path: "/admin",
-            emoji: "🏛️",
-            color: theme.palette.error.main,
-            description: "관리자 전용 패널",
-          },
-        ]
-      : []),
-    {
-      text: "빙하 설정",
-      icon: <IceIcon />,
+  // 테마별 메뉴 아이템 생성 (완전히 개선된 버전)
+  const getMenuItems = () => {
+    // 테마별 설정
+    const themeConfigs = {
+      penguin: {
+        name: "펭귄",
+        environment: "빙하",
+        homeIcon: <IceIcon />,
+        healthIcon: <IceIcon />,
+        analyticsIcon: <AnalyticsIcon />,
+        projectIcon: <ExploreIcon />,
+        timerIcon: <TimerIcon />,
+        chatIcon: <MeditationIcon />,
+        profileIcon: <PetsIcon />,
+        adminIcon: <AdminIcon />,
+        settingsIcon: <SettingsIcon />,
+      },
+      "desert-fox": {
+        name: "사막여우",
+        environment: "사막",
+        homeIcon: <SunIcon />,
+        healthIcon: <PetsIcon />,
+        analyticsIcon: <AnalyticsIcon />,
+        projectIcon: <ExploreIcon />,
+        timerIcon: <TimerIcon />,
+        chatIcon: <MeditationIcon />,
+        profileIcon: <PetsIcon />,
+        adminIcon: <AdminIcon />,
+        settingsIcon: <SettingsIcon />,
+      },
+      sheep: {
+        name: "양",
+        environment: "목초지",
+        homeIcon: <GrassIcon />,
+        healthIcon: <PetsIcon />,
+        analyticsIcon: <AnalyticsIcon />,
+        projectIcon: <FarmIcon />,
+        timerIcon: <TimerIcon />,
+        chatIcon: <MeditationIcon />,
+        profileIcon: <PetsIcon />,
+        adminIcon: <AdminIcon />,
+        settingsIcon: <SettingsIcon />,
+      },
+      cat: {
+        name: "고양이",
+        environment: "집",
+        homeIcon: <CatHomeIcon />,
+        healthIcon: <PetsIcon />,
+        analyticsIcon: <AnalyticsIcon />,
+        projectIcon: <CatHomeIcon />,
+        timerIcon: <TimerIcon />,
+        chatIcon: <MeditationIcon />,
+        profileIcon: <PetsIcon />,
+        adminIcon: <AdminIcon />,
+        settingsIcon: <SettingsIcon />,
+      },
+    };
+
+    const currentTheme = themeConfig?.id || "penguin";
+    const config = themeConfigs[currentTheme] || themeConfigs.penguin;
+
+    const baseItems = [
+      {
+        text: `${config.name}의 기지`,
+        icon: config.homeIcon,
+        path: "/",
+        emoji: themeConfig?.emoji || "🐧",
+        color: theme.palette.primary.main,
+        description: `${config.name}와 함께하는 홈`,
+      },
+      {
+        text: `${config.name} 컨디션`,
+        icon: config.healthIcon,
+        path: "/condition",
+        emoji: themeConfig?.emoji || "🐧",
+        color: theme.palette.success.main,
+        description: "몸과 마음의 상태 기록",
+      },
+      {
+        text: `${config.name} 분석`,
+        icon: config.analyticsIcon,
+        path: "/analytics",
+        emoji: themeConfig?.emoji || "🐧",
+        color: theme.palette.info.main,
+        description: "데이터로 보는 나의 변화",
+      },
+      {
+        text: themeConfig?.concepts?.projectType
+          ? `${config.name} ${themeConfig.concepts.projectType}`
+          : `${config.name} 프로젝트`,
+        icon: config.projectIcon,
+        path: "/projects",
+        emoji: getProjectEmoji(currentTheme),
+        color: theme.palette.warning.main,
+        description: themeConfig?.concepts?.projectManage || "프로젝트 관리",
+      },
+      {
+        text: `${config.name} 뽀모도로`,
+        icon: config.timerIcon,
+        path: "/pomodoro",
+        emoji: getTimerEmoji(currentTheme),
+        color: theme.palette.secondary.main,
+
+        description: `${config.name}과 함께하는 뽀모도로`,
+      },
+      // {
+      //   text: `${config.name} 상담`,
+      //   icon: config.chatIcon,
+      //   path: "/chat",
+      //   emoji: getChatEmoji(currentTheme),
+      //   color: theme.palette.info.main,
+      //   description: `AI ${config.name}과 대화하기`,
+      // },
+      {
+        text: `${config.name} 프로필`,
+        icon: config.profileIcon,
+        path: "/profile",
+        emoji: themeConfig?.emoji || "🐧",
+        color: theme.palette.secondary.main,
+        description: "개인 정보 및 설정",
+      },
+    ];
+
+    // 테마별 이모지 함수들
+    function getProjectEmoji(theme: string) {
+      switch (theme) {
+        case "penguin":
+          return "🗺️";
+        case "desert-fox":
+          return "🐪";
+        case "sheep":
+          return "🚜";
+        case "cat":
+          return "🏠";
+        default:
+          return "📁";
+      }
+    }
+
+    function getTimerEmoji(theme: string) {
+      switch (theme) {
+        case "penguin":
+          return "⏰";
+        case "desert-fox":
+          return "🕒";
+        case "sheep":
+          return "⏲️";
+        case "cat":
+          return "🕐";
+        default:
+          return "⏰";
+      }
+    }
+
+    function getChatEmoji(theme: string) {
+      switch (theme) {
+        case "penguin":
+          return "💬";
+        case "desert-fox":
+          return "🗣️";
+        case "sheep":
+          return "💭";
+        case "cat":
+          return "🗨️";
+        default:
+          return "💬";
+      }
+    }
+
+    // 관리자 전용 메뉴 추가
+    if (isUserAdmin) {
+      baseItems.push({
+        text: `${config.environment} 관리소`,
+        icon: config.adminIcon,
+        path: "/admin",
+        emoji: getAdminEmoji(currentTheme),
+        color: theme.palette.error.main,
+        description: "관리자 전용 패널",
+      });
+    }
+
+    function getAdminEmoji(theme: string) {
+      switch (theme) {
+        case "penguin":
+          return "🏛️";
+        case "desert-fox":
+          return "🏢";
+        case "sheep":
+          return "🏪";
+        case "cat":
+          return "🏬";
+        default:
+          return "🏛️";
+      }
+    }
+
+    // 설정 메뉴 추가
+    baseItems.push({
+      text: `${config.environment} 설정`,
+      icon: config.settingsIcon,
       path: "/settings",
-      emoji: "❄️",
+      emoji: getSettingsEmoji(currentTheme),
       color: theme.palette.grey[600],
       description: "앱 설정 및 환경설정",
-    },
-  ];
+    });
+
+    function getSettingsEmoji(theme: string) {
+      switch (theme) {
+        case "penguin":
+          return "❄️";
+        case "desert-fox":
+          return "⚙️";
+        case "sheep":
+          return "🔧";
+        case "cat":
+          return "🔩";
+        default:
+          return "⚙️";
+      }
+    }
+
+    return baseItems;
+  };
+
+  const menuItems = getMenuItems();
 
   const getCurrentPageTitle = () => {
     const currentItem = menuItems.find((item) => item.path === location.pathname);
-    return currentItem ? `${currentItem.emoji} ${currentItem.text}` : "🐧 펭귄 비서";
+    const defaultTitle = `${themeConfig?.emoji} ${themeConfig?.name || "개인 비서"}`;
+    return currentItem ? `${currentItem.emoji} ${currentItem.text}` : defaultTitle;
   };
 
   const handleMenuClick = (event: React.MouseEvent<HTMLElement>) => {
@@ -196,7 +349,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user }) => {
       >
         {(!desktopCollapsed || isMobile) && (
           <Typography variant="h6" fontWeight="bold" color="primary">
-            🐧 펭귄비서
+            {themeConfig?.emoji} {themeConfig?.name || "개인 비서"}
           </Typography>
         )}
 

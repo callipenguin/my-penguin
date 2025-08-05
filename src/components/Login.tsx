@@ -14,7 +14,7 @@ import {
   DialogContent,
   DialogActions,
 } from "@mui/material";
-import { Google, Send, CloudSync } from "@mui/icons-material";
+import { Google, Send } from "@mui/icons-material";
 import { signInWithGoogle, saveAccessRequest } from "../utils/firebase";
 import { User } from "firebase/auth";
 

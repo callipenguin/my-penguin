@@ -17,12 +17,10 @@ import {
   useMediaQuery,
   Fade,
   Slide,
+  Tooltip,
 } from "@mui/material";
 import {
   TrendingUp,
-  Assignment,
-  Psychology,
-  EmojiEmotions,
   Lightbulb,
   Explore,
   AcUnit,
@@ -35,6 +33,7 @@ import { Project } from "../types";
 import dayjs from "dayjs";
 import { loadUserData, getCurrentUser } from "../utils/firebase";
 import ModernPenguinScene from "../components/ModernPenguinScene";
+import { ThemeConfigExtended } from "../types";
 
 // 심플한 Todo 타입
 interface SimpleTodo {
@@ -44,7 +43,11 @@ interface SimpleTodo {
   createdAt: string;
 }
 
-const Dashboard: React.FC = () => {
+interface DashboardProps {
+  themeConfig?: ThemeConfigExtended;
+}
+
+const Dashboard: React.FC<DashboardProps> = ({ themeConfig }) => {
   const theme = useTheme();
   const navigate = useNavigate();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
@@ -101,10 +104,29 @@ const Dashboard: React.FC = () => {
 
   const getTemperatureMood = () => {
     const temp = Math.floor(Math.random() * 10) - 5; // -5도에서 5도 사이
-    if (temp < -3) return { temp: `${temp}°C`, mood: "🥶 완전 추워요!", color: theme.palette.info.main };
-    if (temp < 0) return { temp: `${temp}°C`, mood: "❄️ 시원해요", color: theme.palette.primary.main };
-    if (temp < 3) return { temp: `${temp}°C`, mood: "🐧 적당해요", color: theme.palette.success.main };
-    return { temp: `${temp}°C`, mood: "🌡️ 따뜻해요", color: theme.palette.warning.main };
+    if (temp < -3)
+      return {
+        temp: `${temp}°C`,
+        mood: themeConfig?.concepts.temperatureMoods.cold || "🥶 완전 추워요!",
+        color: theme.palette.info.main,
+      };
+    if (temp < 0)
+      return {
+        temp: `${temp}°C`,
+        mood: themeConfig?.concepts.temperatureMoods.cold || "❄️ 시원해요",
+        color: theme.palette.primary.main,
+      };
+    if (temp < 3)
+      return {
+        temp: `${temp}°C`,
+        mood: themeConfig?.concepts.temperatureMoods.mild || "🐧 적당해요",
+        color: theme.palette.success.main,
+      };
+    return {
+      temp: `${temp}°C`,
+      mood: themeConfig?.concepts.temperatureMoods.warm || "🌡️ 따뜻해요",
+      color: theme.palette.warning.main,
+    };
   };
 
   const activeProjects = projects.filter((p) => p.status === "active");
@@ -113,23 +135,23 @@ const Dashboard: React.FC = () => {
 
   const quickActions = [
     {
-      title: "빙하 건강 체크",
+      title: "건강 체크",
       description: "오늘의 컨디션을 기록하세요",
       icon: <LocalHospital />,
       color: theme.palette.success.main,
       path: "/condition",
-      emoji: "🐧",
+      emoji: themeConfig?.emoji || "🐧",
     },
     {
-      title: "새 탐험 시작",
-      description: "새로운 프로젝트를 계획하세요",
+      title: themeConfig?.concepts.projectCreate?.replace("새로운 ", "새 ").replace(" 시작하기", "") || "새 탐험 시작",
+      description: themeConfig?.concepts.projectCreate || "새로운 프로젝트를 계획하세요",
       icon: <Explore />,
       color: theme.palette.warning.main,
       path: "/projects",
       emoji: "🗺️",
     },
     {
-      title: "빙하 분석",
+      title: "데이터 분석",
       description: "데이터를 분석해보세요",
       icon: <Analytics />,
       color: theme.palette.info.main,
@@ -158,7 +180,7 @@ const Dashboard: React.FC = () => {
           <CardContent sx={{ py: isMobile ? 4 : 6, px: isMobile ? 3 : 5, position: "relative", zIndex: 1 }}>
             <Box sx={{ textAlign: "center" }}>
               <Typography variant={isMobile ? "h4" : "h3"} fontWeight="bold" sx={{ mb: 2 }}>
-                ❄️ 빙하 기지에 오신 걸 환영해요!
+                {themeConfig?.concepts.baseTitle || "❄️ 빙하 기지에 오신 걸 환영해요!"}
               </Typography>
               <Typography variant={isMobile ? "h6" : "h5"} sx={{ opacity: 0.9, mb: 1 }}>
                 {getGreeting()}
@@ -198,17 +220,96 @@ const Dashboard: React.FC = () => {
                   gap: 1,
                 }}
               >
-                <HomeIcon /> 빙하 기지 라이브 뷰
+                <HomeIcon /> {themeConfig?.concepts.liveView || "🏠 빙하 기지 라이브 뷰"}
               </Typography>
               <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-                우리의 펭귄 친구가 빙하 위를 걸어다니고 있어요! 🐧❄️
+                {themeConfig?.concepts.liveViewDescription || "우리의 펭귄 친구가 빙하 위를 걸어다니고 있어요! 🐧❄️"}
               </Typography>
             </Box>
-            <ModernPenguinScene
-              width={isMobile ? Math.min(window.innerWidth - 32, 800) : Math.min(window.innerWidth - 200, 1200)}
-              height={isMobile ? 300 : 400}
-              projects={projects}
-            />
+            {/* 3D 씬 렌더링 - 테마별로 다른 컴포넌트 */}
+            {themeConfig?.id === "penguin" ? (
+              <ModernPenguinScene
+                width={isMobile ? Math.min(window.innerWidth - 32, 800) : Math.min(window.innerWidth - 200, 1200)}
+                height={isMobile ? 300 : 400}
+                projects={projects}
+              />
+            ) : (
+              <Box
+                sx={{
+                  width: "100%",
+                  height: isMobile ? 300 : 400,
+                  borderRadius: 2,
+                  background: "linear-gradient(135deg, #f4a261 0%, #e76f51 100%)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  position: "relative",
+                  overflow: "hidden",
+                }}
+              >
+                {/* 테마별 배경 */}
+                <Box
+                  sx={{
+                    position: "absolute",
+                    width: "100%",
+                    height: "100%",
+                    background:
+                      "radial-gradient(circle at 30% 70%, #e9c46a 0%, transparent 50%), radial-gradient(circle at 70% 30%, #f4a261 0%, transparent 50%)",
+                    opacity: 0.7,
+                  }}
+                />
+
+                {/* 테마별 동물 이모티콘들 */}
+                <Box sx={{ textAlign: "center", zIndex: 1 }}>
+                  <Typography variant="h1" sx={{ fontSize: "4rem", mb: 2 }}>
+                    {themeConfig?.emoji || "🦊"}
+                  </Typography>
+                  <Typography variant="h6" color="white" fontWeight="bold">
+                    {themeConfig?.concepts?.animal || "동물"}이{" "}
+                    {themeConfig?.concepts?.environment?.split(" ")[0] || "환경"}을 탐험 중이에요!
+                  </Typography>
+                  <Typography variant="body2" color="white" sx={{ opacity: 0.8, mt: 1 }}>
+                    {themeConfig?.emoji || "🦊"} 곧 3D {themeConfig?.concepts?.animal || "동물"} 씬이 추가될 예정입니다{" "}
+                    {themeConfig?.concepts?.environment?.split(" ")[2] || "🏜️"}
+                  </Typography>
+                </Box>
+
+                {/* 장식용 요소들 */}
+                <Box
+                  sx={{
+                    position: "absolute",
+                    bottom: 20,
+                    left: 20,
+                    fontSize: "2rem",
+                    opacity: 0.6,
+                  }}
+                >
+                  🌵
+                </Box>
+                <Box
+                  sx={{
+                    position: "absolute",
+                    top: 30,
+                    right: 30,
+                    fontSize: "1.5rem",
+                    opacity: 0.6,
+                  }}
+                >
+                  🌞
+                </Box>
+                <Box
+                  sx={{
+                    position: "absolute",
+                    bottom: 40,
+                    right: 40,
+                    fontSize: "1.8rem",
+                    opacity: 0.6,
+                  }}
+                >
+                  🏜️
+                </Box>
+              </Box>
+            )}
           </CardContent>
         </Card>
       </Slide>
@@ -279,7 +380,7 @@ const Dashboard: React.FC = () => {
                 <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
                   <Explore sx={{ mr: 1, color: theme.palette.warning.main }} />
                   <Typography variant="h6" fontWeight="bold">
-                    🗺️ 진행 중인 탐험 ({activeProjects.length})
+                    {themeConfig?.concepts.activeProjects || "🗺️ 진행 중인 탐험"} ({activeProjects.length})
                   </Typography>
                 </Box>
 
@@ -328,10 +429,10 @@ const Dashboard: React.FC = () => {
                 ) : (
                   <Box sx={{ textAlign: "center", py: 4 }}>
                     <Typography variant="body1" color="textSecondary" gutterBottom>
-                      🧊 진행 중인 탐험이 없어요
+                      🧊 진행 중인 {themeConfig?.concepts.projectType || "탐험"}이 없어요
                     </Typography>
                     <Button variant="outlined" onClick={() => navigate("/projects")} sx={{ borderRadius: 3, mt: 2 }}>
-                      새 탐험 시작하기
+                      {themeConfig?.concepts.projectCreate || "새 탐험 시작하기"}
                     </Button>
                   </Box>
                 )}
@@ -348,7 +449,7 @@ const Dashboard: React.FC = () => {
                 <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
                   <TrendingUp sx={{ mr: 1, color: theme.palette.success.main }} />
                   <Typography variant="h6" fontWeight="bold">
-                    📊 탐험 현황
+                    {themeConfig?.concepts.projectStats || "📊 탐험 현황"}
                   </Typography>
                 </Box>
 
@@ -359,7 +460,7 @@ const Dashboard: React.FC = () => {
                         {projects.length}
                       </Typography>
                       <Typography variant="body2" color="textSecondary">
-                        총 탐험
+                        총 {themeConfig?.concepts.projectType || "탐험"}
                       </Typography>
                     </Box>
                   </Grid>
@@ -369,7 +470,7 @@ const Dashboard: React.FC = () => {
                         {completedProjects.length}
                       </Typography>
                       <Typography variant="body2" color="textSecondary">
-                        완료된 탐험
+                        완료된 {themeConfig?.concepts.projectType || "탐험"}
                       </Typography>
                     </Box>
                   </Grid>
@@ -379,7 +480,7 @@ const Dashboard: React.FC = () => {
 
                 <Box sx={{ textAlign: "center" }}>
                   <Typography variant="body1" color="textSecondary" gutterBottom>
-                    🐧 펭귄의 한마디
+                    {themeConfig?.emoji} {themeConfig?.concepts.animal}의 한마디
                   </Typography>
                   <Typography
                     variant="body2"
@@ -394,7 +495,7 @@ const Dashboard: React.FC = () => {
                       fontWeight: "medium",
                     }}
                   >
-                    "오늘도 빙하 위에서 멋진 하루 보내세요! ❄️"
+                    {themeConfig?.concepts.greeting || "오늘도 멋진 하루 보내세요! ✨"}
                   </Typography>
                 </Box>
               </CardContent>

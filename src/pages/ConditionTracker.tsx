@@ -9,7 +9,6 @@ import {
   ButtonGroup,
   TextField,
   Chip,
-  IconButton,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -17,12 +16,16 @@ import {
   useTheme,
   Tooltip,
 } from "@mui/material";
-import { Add, Edit, Analytics, TrendingUp, CalendarMonth } from "@mui/icons-material";
-import { ConditionLevel, ConditionEntry } from "../types";
+import { TrendingUp, Analytics, CalendarMonth } from "@mui/icons-material";
+import { ConditionLevel, ConditionEntry, ThemeConfigExtended } from "../types";
 import dayjs from "dayjs";
 import { loadUserData, saveUserData, getCurrentUser } from "../utils/firebase";
 
-const ConditionTracker: React.FC = () => {
+interface ConditionTrackerProps {
+  themeConfig?: ThemeConfigExtended;
+}
+
+const ConditionTracker: React.FC<ConditionTrackerProps> = ({ themeConfig }) => {
   const theme = useTheme();
   const [selectedWeek, setSelectedWeek] = useState(dayjs().startOf("week"));
   const [conditions, setConditions] = useState<ConditionEntry[]>([]);
@@ -30,12 +33,52 @@ const ConditionTracker: React.FC = () => {
   const [memoDialogOpen, setMemoDialogOpen] = useState(false);
   const [currentMemo, setCurrentMemo] = useState("");
 
+  // 테마별 컨디션 이모지
+  const getConditionEmojis = () => {
+    switch (themeConfig?.id) {
+      case "desert-fox":
+        return {
+          excellent: "🦊",
+          good: "🌵",
+          normal: "☀️",
+          tired: "🏜️",
+          exhausted: "🔥",
+        };
+      case "sheep":
+        return {
+          excellent: "🐑",
+          good: "🌿",
+          normal: "🌱",
+          tired: "🍃",
+          exhausted: "🌾",
+        };
+      case "cat":
+        return {
+          excellent: "🐱",
+          good: "🐟",
+          normal: "🧶",
+          tired: "🐾",
+          exhausted: "😿",
+        };
+      default: // penguin
+        return {
+          excellent: "🐧",
+          good: "🐟",
+          normal: "❄️",
+          tired: "🧊",
+          exhausted: "🐻‍❄️",
+        };
+    }
+  };
+
+  const conditionEmojis = getConditionEmojis();
+
   const conditionLevels: { level: ConditionLevel; emoji: string; color: string; label: string }[] = [
-    { level: "excellent", emoji: "🐧", color: "#4caf50", label: "최고" },
-    { level: "good", emoji: "🐟", color: "#8bc34a", label: "좋음" },
-    { level: "normal", emoji: "❄️", color: "#ffc107", label: "보통" },
-    { level: "tired", emoji: "🧊", color: "#ff9800", label: "피곤" },
-    { level: "exhausted", emoji: "🐻‍❄️", color: "#f44336", label: "매우 피곤" },
+    { level: "excellent", emoji: conditionEmojis.excellent, color: "#4caf50", label: "최고" },
+    { level: "good", emoji: conditionEmojis.good, color: "#8bc34a", label: "좋음" },
+    { level: "normal", emoji: conditionEmojis.normal, color: "#ffc107", label: "보통" },
+    { level: "tired", emoji: conditionEmojis.tired, color: "#ff9800", label: "피곤" },
+    { level: "exhausted", emoji: conditionEmojis.exhausted, color: "#f44336", label: "매우 피곤" },
   ];
 
   const hours = Array.from({ length: 24 }, (_, i) => i);
@@ -217,10 +260,10 @@ const ConditionTracker: React.FC = () => {
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 4 }}>
         <Box>
           <Typography variant="h4" fontWeight="bold" gutterBottom>
-            🐟 컨디션 빙하
+            {themeConfig?.emoji || "🐟"} 컨디션 {themeConfig?.concepts?.environment?.split(" ")[0] || "추적"}
           </Typography>
           <Typography variant="body1" color="textSecondary">
-            펭귄의 일상처럼 시간별 컨디션을 기록하고 패턴을 분석해보세요
+            {themeConfig?.concepts?.animal || "동물"}의 일상처럼 시간별 컨디션을 기록하고 패턴을 분석해보세요
           </Typography>
         </Box>
 

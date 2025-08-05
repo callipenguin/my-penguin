@@ -1,5 +1,5 @@
-import React, { useRef, useEffect } from "react";
-import { Box } from "@mui/material";
+import React, { useRef, useEffect, useState } from "react";
+import { Box, useTheme } from "@mui/material";
 import * as THREE from "three";
 import { Project } from "../types";
 
@@ -10,6 +10,8 @@ interface PenguinSceneProps {
 }
 
 const PenguinScene: React.FC<PenguinSceneProps> = ({ width = 800, height = 400, projects = [] }) => {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene>();
   const rendererRef = useRef<THREE.WebGLRenderer>();
@@ -125,7 +127,7 @@ const PenguinScene: React.FC<PenguinSceneProps> = ({ width = 800, height = 400, 
 
     // 씬 생성
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xf0f8ff);
+    scene.background = new THREE.Color(isDark ? 0x1a202c : 0xf0f8ff); // 다크테마: 짙은 회색, 라이트테마: 밝은 하늘색
     sceneRef.current = scene;
 
     // 카메라 생성
@@ -243,7 +245,7 @@ const PenguinScene: React.FC<PenguinSceneProps> = ({ width = 800, height = 400, 
       }
       renderer.dispose();
     };
-  }, [width, height, projects]);
+  }, [width, height, projects, isDark]);
 
   // 현실적인 펭귄 생성 함수
   const createRealisticPenguin = (colors: any, index: number): THREE.Group => {
@@ -546,7 +548,9 @@ const PenguinScene: React.FC<PenguinSceneProps> = ({ width = 800, height = 400, 
         overflow: "hidden",
         boxShadow: "0 12px 40px rgba(0, 0, 0, 0.15)",
         border: "2px solid rgba(33, 150, 243, 0.2)",
-        background: "linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)",
+        background: isDark
+          ? "linear-gradient(135deg, #1a202c 0%, #2d3748 100%)"
+          : "linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)",
         "& canvas": {
           borderRadius: 4,
         },

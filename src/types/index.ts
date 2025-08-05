@@ -85,6 +85,64 @@ export interface ChatContext {
   userPreferences?: UserPreferences;
 }
 
+// 테마 관련 타입 추가
+export type ThemeType = "penguin" | "desert-fox" | "sheep" | "cat";
+export type ColorMode = "light" | "dark" | "auto";
+
+export interface ThemeSettings {
+  type: ThemeType;
+  mode: ColorMode;
+}
+
+// 테마별 색상 세트 정의
+export interface ThemeColorSet {
+  primary: string;
+  primaryLight: string;
+  primaryDark: string;
+  secondary: string;
+  secondaryLight: string;
+  secondaryDark: string;
+  background: string;
+  paper: string;
+  info: string;
+  success: string;
+  warning: string;
+  error: string;
+}
+
+// 테마별 컨셉 정의
+export interface ThemeConcepts {
+  loading: string;
+  welcome: string;
+  appName: string;
+  appDescription: string;
+  environment: string;
+  animal: string;
+  greeting: string;
+  farewell: string;
+  // Dashboard 관련
+  baseTitle: string;
+  baseWelcome: string;
+  liveView: string;
+  liveViewDescription: string;
+  quickActions: string;
+  activeProjects: string;
+  projectStats: string;
+  animalSaying: string;
+  // 온도 기분
+  temperatureMoods: {
+    cold: string;
+    cool: string;
+    mild: string;
+    warm: string;
+    hot: string;
+  };
+  // 프로젝트 관련
+  projectType: string; // "탐험" vs "모험"
+  projectCreate: string;
+  projectManage: string;
+}
+
 // 사용자 설정 타입
 export interface UserPreferences {
   name?: string;
@@ -98,7 +156,7 @@ export interface UserPreferences {
     projectDeadlines: boolean;
     breakReminders: boolean;
   };
-  theme: "light" | "dark" | "auto";
+  theme: ThemeSettings;
   language: "ko" | "en";
 }
 
@@ -158,4 +216,81 @@ export interface WeeklyPomodoroStats {
     sessions: number;
     minutes: number;
   }>;
+}
+
+// 확장된 테마 시스템을 위한 새로운 인터페이스들
+export interface ThemeUIConfig {
+  background: {
+    primary: string; // 메인 배경색
+    secondary: string; // 보조 배경색
+    pattern: string; // SVG 패턴 URL
+    gradient: string; // CSS 그라디언트
+  };
+  border: {
+    color: string; // 테두리 색상
+    shadow: string; // 박스 섀도우
+  };
+  path: {
+    color: string; // 원형 경로 색상
+    opacity: number; // 경로 투명도
+  };
+}
+
+export interface ThemeGameConfig {
+  blocks: {
+    emoji: string; // 블록 이모지
+    type: string; // 블록 타입 이름 (얼음, 피라미드 등)
+    collectName: string; // 수집 아이템 이름
+  };
+  building: {
+    name: string; // 건축물 이름 (피라미드, 얼음성 등)
+    description: string; // 건축물 설명
+    completionMessage: string; // 완성 메시지
+  };
+  collectInterval: number; // 블록 수집 간격 (초)
+  maxBlocks: number; // 최대 블록 수
+  progressPerBlock: number; // 블록당 진행도 (%)
+}
+
+export interface ThemeAnimationConfig {
+  animal: {
+    speed: number; // 이동 속도 (원주 속도)
+    radius: number; // 이동 반지름 (%)
+    bounceHeight: number; // 바운스 높이 효과
+  };
+  blocks: {
+    popDuration: string; // 블록 팝업 애니메이션 시간 (CSS 시간)
+    arrangement: "pyramid" | "tower" | "circle" | "spiral"; // 블록 배치 방식
+    spacing: {
+      horizontal: number; // 가로 간격
+      vertical: number; // 세로 간격
+    };
+  };
+}
+
+// 확장된 ThemeConfig 인터페이스
+export interface ThemeConfigExtended {
+  id: ThemeType;
+  name: string;
+  emoji: string;
+  description: string;
+  colors: {
+    light: ThemeColorSet;
+    dark: ThemeColorSet;
+  };
+  concepts: ThemeConcepts;
+  ui: ThemeUIConfig;
+  game: ThemeGameConfig;
+  animation: ThemeAnimationConfig;
+}
+
+// 기존 ThemeConfig와의 호환성을 위한 타입 (점진적 마이그레이션)
+export interface ThemeConfig extends Partial<ThemeConfigExtended> {
+  name: string;
+  emoji: string;
+  colors: {
+    light: ThemeColorSet;
+    dark: ThemeColorSet;
+  };
+  concepts: ThemeConcepts;
 }

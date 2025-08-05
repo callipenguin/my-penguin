@@ -18,7 +18,6 @@ import {
   FormControl,
   InputLabel,
   LinearProgress,
-  Fab,
   useTheme,
   useMediaQuery,
   Accordion,
@@ -37,18 +36,21 @@ import {
   CheckCircle,
   Flag,
   AccessTime,
-  TrendingUp,
   ExpandMore,
   Explore,
   AcUnit,
   AddCircleOutline,
 } from "@mui/icons-material";
-import { Project, ProjectStatus, Priority, Task, SimpleTodo } from "../types";
+import { Project, ProjectStatus, Priority, Task, SimpleTodo, ThemeConfigExtended } from "../types";
 import dayjs from "dayjs";
-import { loadUserData, saveUserData, getCurrentUser } from "../utils/firebase";
+import { loadUserData, getCurrentUser, saveUserData } from "../utils/firebase";
 import { DragDropContext, Droppable, Draggable, DropResult } from "react-beautiful-dnd";
 
-const ProjectManager: React.FC = () => {
+interface ProjectManagerProps {
+  themeConfig?: ThemeConfigExtended;
+}
+
+const ProjectManager: React.FC<ProjectManagerProps> = ({ themeConfig }) => {
   const theme = useTheme();
   const [projects, setProjects] = useState<Project[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -63,11 +65,47 @@ const ProjectManager: React.FC = () => {
   const [newTodoText, setNewTodoText] = useState<{ [key: string]: string }>({});
   const [projectTodos, setProjectTodos] = useState<{ [projectId: string]: SimpleTodo[] }>({});
 
+  // 테마별 상태 이모지
+  const getStatusEmojis = () => {
+    switch (themeConfig?.id) {
+      case "desert-fox":
+        return {
+          planning: "🏜️",
+          active: "🦊",
+          paused: "🌵",
+          completed: "🐫",
+        };
+      case "sheep":
+        return {
+          planning: "🌱",
+          active: "🐑",
+          paused: "🌿",
+          completed: "🌾",
+        };
+      case "cat":
+        return {
+          planning: "🧶",
+          active: "🐱",
+          paused: "🐾",
+          completed: "🐟",
+        };
+      default: // penguin
+        return {
+          planning: "🧊",
+          active: "🐧",
+          paused: "❄️",
+          completed: "🐟",
+        };
+    }
+  };
+
+  const statusEmojis = getStatusEmojis();
+
   const statusColumns: { status: ProjectStatus; title: string; color: string; emoji: string }[] = [
-    { status: "planning", title: "계획 중", color: theme.palette.info.main, emoji: "🧊" },
-    { status: "active", title: "진행 중", color: theme.palette.grey[600], emoji: "🐧" },
-    { status: "paused", title: "일시 중단", color: theme.palette.warning.main, emoji: "❄️" },
-    { status: "completed", title: "완료", color: theme.palette.success.main, emoji: "🐟" },
+    { status: "planning", title: "계획 중", color: theme.palette.info.main, emoji: statusEmojis.planning },
+    { status: "active", title: "진행 중", color: theme.palette.grey[600], emoji: statusEmojis.active },
+    { status: "paused", title: "일시 중단", color: theme.palette.warning.main, emoji: statusEmojis.paused },
+    { status: "completed", title: "완료", color: theme.palette.success.main, emoji: statusEmojis.completed },
   ];
 
   const priorityInfo: Record<Priority, { color: string; label: string }> = {
@@ -360,7 +398,7 @@ const ProjectManager: React.FC = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      {/* 헤더 - 빙하 탐험 컨셉 */}
+      {/* 헤더 - 테마별 컨셉 */}
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 4 }}>
         <Box>
           <Typography
@@ -377,10 +415,11 @@ const ProjectManager: React.FC = () => {
               gap: 1,
             }}
           >
-            <AcUnit /> 빙하 탐험
+            {themeConfig?.concepts?.baseTitle?.split(" ")[0] || <AcUnit />}{" "}
+            {themeConfig?.concepts?.projectType || "프로젝트"}
           </Typography>
           <Typography variant="body1" color="textSecondary">
-            펭귄처럼 체계적으로 빙하를 탐험하고 프로젝트를 관리하세요 🐧❄️
+            {themeConfig?.concepts?.projectManage || "프로젝트를 체계적으로 관리하세요"} {themeConfig?.emoji || "🐧"}
           </Typography>
         </Box>
 
@@ -400,7 +439,7 @@ const ProjectManager: React.FC = () => {
             transition: "all 0.3s ease",
           }}
         >
-          새 탐험
+          {themeConfig?.concepts?.projectCreate?.replace("새로운 ", "새 ").replace(" 시작하기", "") || "새 탐험"}
         </Button>
       </Box>
 
