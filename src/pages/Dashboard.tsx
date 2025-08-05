@@ -33,6 +33,9 @@ import { Project } from "../types";
 import dayjs from "dayjs";
 import { loadUserData, getCurrentUser } from "../utils/firebase";
 import ModernPenguinScene from "../components/ModernPenguinScene";
+import DesertFoxScene from "../components/DesertFoxScene";
+import SheepScene from "../components/SheepScene";
+import CatScene from "../components/CatScene";
 import { ThemeConfigExtended } from "../types";
 
 // 심플한 Todo 타입
@@ -229,6 +232,24 @@ const Dashboard: React.FC<DashboardProps> = ({ themeConfig }) => {
             {/* 3D 씬 렌더링 - 테마별로 다른 컴포넌트 */}
             {themeConfig?.id === "penguin" ? (
               <ModernPenguinScene
+                width={isMobile ? Math.min(window.innerWidth - 32, 800) : Math.min(window.innerWidth - 200, 1200)}
+                height={isMobile ? 300 : 400}
+                projects={projects}
+              />
+            ) : themeConfig?.id === "desert-fox" ? (
+              <DesertFoxScene
+                width={isMobile ? Math.min(window.innerWidth - 32, 800) : Math.min(window.innerWidth - 200, 1200)}
+                height={isMobile ? 300 : 400}
+                projects={projects}
+              />
+            ) : themeConfig?.id === "sheep" ? (
+              <SheepScene
+                width={isMobile ? Math.min(window.innerWidth - 32, 800) : Math.min(window.innerWidth - 200, 1200)}
+                height={isMobile ? 300 : 400}
+                projects={projects}
+              />
+            ) : themeConfig?.id === "cat" ? (
+              <CatScene
                 width={isMobile ? Math.min(window.innerWidth - 32, 800) : Math.min(window.innerWidth - 200, 1200)}
                 height={isMobile ? 300 : 400}
                 projects={projects}
