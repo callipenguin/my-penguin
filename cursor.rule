@@ -233,6 +233,14 @@ npm run deploy     # GitHub Pages 자동 배포
 # 내부적으로: build → gh-pages -d dist
 ```
 
+### 🚨 자동 배포 규칙
+**중요**: 사용자가 특별히 다른 배포 방식을 언급하지 않는 한, 항상 다음 순서로 GitHub Pages에 자동 배포한다:
+1. 변경사항 커밋 및 GitHub 푸시
+2. `npm run deploy` 실행으로 gh-pages 브랜치에 빌드 결과 배포
+3. 배포 완료 후 URL 안내: https://callipenguin.github.io/my-penguin/
+
+이는 프로젝트의 기본 배포 전략이며, 웹 앱의 즉시 반영을 위한 필수 과정이다.
+
 ### URL 구조
 - **Production**: https://callipenguin.github.io/my-penguin/
 - **Router**: HashRouter 사용 (#/path 형태)
