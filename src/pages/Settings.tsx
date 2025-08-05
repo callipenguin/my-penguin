@@ -243,12 +243,29 @@ const Settings: React.FC<SettingsProps> = ({ onThemeChange, themeSettings, theme
     return `${startTime} - ${endTime}`;
   };
 
+  // 테마별 환경 이름 매핑 함수
+  const getEnvironmentName = () => {
+    const themeId = themeConfig?.id;
+    switch (themeId) {
+      case "penguin":
+        return "빙하";
+      case "desert-fox":
+        return "사막";
+      case "sheep":
+        return "목초지";
+      case "cat":
+        return "집";
+      default:
+        return "빙하";
+    }
+  };
+
   return (
     <Box sx={{ p: isMobile ? 1 : 3 }}>
       {/* 헤더 */}
       <Box sx={{ mb: 3 }}>
         <Typography variant={isMobile ? "h5" : "h4"} fontWeight="bold" gutterBottom>
-          ⚙️ {themeConfig?.concepts?.environment?.split(" ")[0] || "빙하"} 설정
+          ⚙️ {getEnvironmentName()} 설정
         </Typography>
         <Typography variant="body1" color="textSecondary">
           {themeConfig?.concepts?.animal || "펭귄"} 비서 앱을 나에게 맞게 커스터마이징하세요

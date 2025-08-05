@@ -97,6 +97,7 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
     duration: number;
     actualMinutes?: number; // 실제 경과 시간 추가
   } | null>(null);
+  const [currentSessionSaved, setCurrentSessionSaved] = useState(false); // 현재 세션 저장 상태 추적
 
   // 프로젝트/테스크 생성 다이얼로그 상태
   const [projectDialogOpen, setProjectDialogOpen] = useState(false);
@@ -397,6 +398,9 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
     totalDurationRef.current = time;
     lastUpdateTimeRef.current = now;
 
+    // 세션 저장 상태 초기화
+    setCurrentSessionSaved(false);
+
     initializeCircleBlocks(); // 블록 초기화
     console.log(`⏰ 타이머 시작: ${time}초 (${Math.floor(time / 60)}분 ${time % 60}초)`);
   };
@@ -409,8 +413,8 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
 
       console.log(`⏸️ 타이머 일시정지: ${actualElapsed}초 경과, ${remainingTime}초 남음`);
 
-      // 실제 경과 시간이 있다면 세션 저장 (부분 완료)
-      if (actualElapsed > 0 && sessionStartTime && selectedProject && selectedTask) {
+      // 실제 경과 시간이 있고 아직 저장되지 않았다면 세션 저장 (부분 완료)
+      if (actualElapsed > 0 && !currentSessionSaved && sessionStartTime && selectedProject && selectedTask) {
         const actualMinutes = Math.round((actualElapsed / 60) * 100) / 100; // 소수점 2자리까지
         savePomodoroSession(getCurrentUser()?.uid || "", {
           projectId: selectedProject.id,
@@ -424,6 +428,7 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
           endTime: new Date().toISOString(),
           completed: false, // 중간에 멈춤
         });
+        setCurrentSessionSaved(true); // 저장 완료 표시
       }
 
       setTime(remainingTime);
@@ -438,8 +443,8 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
     const wasActive = isActive;
     const actualElapsed = startTimeRef.current ? Math.floor((Date.now() - startTimeRef.current) / 1000) : 0;
 
-    // 실제 경과 시간이 있다면 세션 저장 (리셋으로 중단)
-    if (wasActive && actualElapsed > 0 && sessionStartTime && selectedProject && selectedTask) {
+    // 실제 경과 시간이 있고 아직 저장되지 않았다면 세션 저장 (리셋으로 중단)
+    if (wasActive && actualElapsed > 0 && !currentSessionSaved && sessionStartTime && selectedProject && selectedTask) {
       const actualMinutes = Math.round((actualElapsed / 60) * 100) / 100;
       savePomodoroSession(getCurrentUser()?.uid || "", {
         projectId: selectedProject.id,
@@ -453,6 +458,7 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
         endTime: new Date().toISOString(),
         completed: false, // 리셋으로 중단
       });
+      setCurrentSessionSaved(true); // 저장 완료 표시
     }
 
     setIsActive(false);
@@ -464,6 +470,9 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
     startTimeRef.current = null;
     totalDurationRef.current = 0;
     lastUpdateTimeRef.current = 0;
+
+    // 세션 저장 상태 초기화
+    setCurrentSessionSaved(false);
 
     initializeCircleBlocks(); // 블록 초기화
     console.log(`🔄 타이머 리셋: ${selectedMinutes}분으로 초기화`);
@@ -521,8 +530,8 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
     // 🎉 요란한 알림!
     playCompletionNotification();
 
-    // 뽀모도로 세션 기록 저장
-    if (sessionStartTime && selectedProject && selectedTask) {
+    // 뽀모도로 세션 기록 저장 (아직 저장되지 않았다면)
+    if (!currentSessionSaved && sessionStartTime && selectedProject && selectedTask) {
       try {
         const user = getCurrentUser();
         if (user) {
@@ -536,11 +545,12 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
             actualDuration: actualMinutes, // 실제 경과 시간 추가
             startTime: sessionStartTime,
             endTime: new Date().toISOString(),
-            completed: true,
+            completed: true, // 완료된 세션
           };
 
           const result = await savePomodoroSession(user.uid, sessionData);
           if (result.success) {
+            setCurrentSessionSaved(true); // 저장 완료 표시
             setLastCompletedSession({
               projectTitle: selectedProject.title,
               taskTitle: selectedTask.title,
@@ -554,6 +564,19 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
         }
       } catch (error) {
         console.error("뽀모도로 세션 저장 중 오류:", error);
+      }
+    } else {
+      // 이미 저장된 경우에도 축하 메시지는 보여줌
+      if (selectedProject && selectedTask) {
+        setLastCompletedSession({
+          projectTitle: selectedProject.title,
+          taskTitle: selectedTask.title,
+          sessionType: isBreak ? "휴식" : "집중",
+          duration: selectedMinutes,
+          actualMinutes: actualMinutes,
+        });
+        setShowCelebration(true);
+        setTimeout(() => setShowCelebration(false), 5000);
       }
     }
 
@@ -573,6 +596,9 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
     startTimeRef.current = null;
     totalDurationRef.current = 0;
     lastUpdateTimeRef.current = 0;
+
+    // 세션 저장 상태 초기화
+    setCurrentSessionSaved(false);
 
     setSessionStartTime(null);
     console.log(`✅ 타이머 완료: ${actualMinutes}분 경과`);
