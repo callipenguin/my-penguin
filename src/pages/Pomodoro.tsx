@@ -113,6 +113,9 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
     loadProjects();
     loadProjectTodos();
 
+    // 저장된 타이머 상태 복원
+    restoreTimerState();
+
     // 알림 사운드 초기화
     try {
       notificationAudioRef.current = new Audio();
@@ -129,33 +132,35 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
         loadProjectTodos();
 
         // 백그라운드 타이머 동기화
-        if (isActive && startTimeRef.current) {
-          const now = Date.now();
-          const actualElapsed = Math.floor((now - startTimeRef.current) / 1000);
-          const newTime = Math.max(0, totalDurationRef.current - actualElapsed);
-
-          console.log(`⏰ 백그라운드 동기화: ${actualElapsed}초 경과, 남은 시간: ${newTime}초`);
-
-          setTime(newTime);
-
-          // 시간이 다 된 경우 완료 처리
-          if (newTime <= 0) {
-            handleTimerComplete();
-          } else {
-            // 진행률 업데이트
-            const progress = ((totalDurationRef.current - newTime) / totalDurationRef.current) * 100;
-            updateCircleBlocks(progress);
-          }
-        }
+        syncBackgroundTimer();
       } else {
         console.log("🎮 Pomodoro 페이지 비활성화");
-        lastUpdateTimeRef.current = Date.now();
+        saveTimerState();
       }
     };
 
+    const handleBeforeUnload = () => {
+      saveTimerState();
+    };
+
+    const handleFocus = () => {
+      syncBackgroundTimer();
+    };
+
+    const handleBlur = () => {
+      saveTimerState();
+    };
+
     document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    window.addEventListener("focus", handleFocus);
+    window.addEventListener("blur", handleBlur);
+
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("blur", handleBlur);
     };
   }, []);
 
@@ -169,6 +174,7 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
   // 타이머 효과
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
+    let saveInterval: NodeJS.Timeout | null = null;
 
     if (isActive && time > 0) {
       interval = setInterval(() => {
@@ -183,12 +189,18 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
           return newTime;
         });
       }, 1000);
+
+      // 주기적으로 상태 저장 (10초마다)
+      saveInterval = setInterval(() => {
+        saveTimerState();
+      }, 10000);
     } else if (time === 0) {
       handleTimerComplete();
     }
 
     return () => {
       if (interval) clearInterval(interval);
+      if (saveInterval) clearInterval(saveInterval);
     };
   }, [isActive, time, selectedMinutes]);
 
@@ -402,6 +414,10 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
     setCurrentSessionSaved(false);
 
     initializeCircleBlocks(); // 블록 초기화
+
+    // 타이머 상태 저장
+    setTimeout(() => saveTimerState(), 100); // state 업데이트 후 저장
+
     console.log(`⏰ 타이머 시작: ${time}초 (${Math.floor(time / 60)}분 ${time % 60}초)`);
   };
 
@@ -437,6 +453,9 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
     setIsActive(false);
     startTimeRef.current = null;
     totalDurationRef.current = 0;
+
+    // 타이머 상태 정리
+    localStorage.removeItem("pomodoroTimerState");
   };
 
   const resetTimer = () => {
@@ -473,6 +492,9 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
 
     // 세션 저장 상태 초기화
     setCurrentSessionSaved(false);
+
+    // 타이머 상태 정리
+    localStorage.removeItem("pomodoroTimerState");
 
     initializeCircleBlocks(); // 블록 초기화
     console.log(`🔄 타이머 리셋: ${selectedMinutes}분으로 초기화`);
@@ -600,6 +622,9 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
     // 세션 저장 상태 초기화
     setCurrentSessionSaved(false);
 
+    // 타이머 상태 정리
+    localStorage.removeItem("pomodoroTimerState");
+
     setSessionStartTime(null);
     console.log(`✅ 타이머 완료: ${actualMinutes}분 경과`);
   };
@@ -610,6 +635,100 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
       Notification.requestPermission();
     }
   }, []);
+
+  // 타이머 상태 저장 함수
+  const saveTimerState = () => {
+    if (isActive && startTimeRef.current) {
+      const timerState = {
+        isActive: isActive,
+        startTime: startTimeRef.current,
+        totalDuration: totalDurationRef.current,
+        currentTime: time,
+        selectedMinutes: selectedMinutes,
+        sessionStartTime: sessionStartTime,
+        isBreak: isBreak,
+        selectedProjectId: selectedProject?.id,
+        selectedTaskId: selectedTask?.id,
+        currentSessionSaved: currentSessionSaved,
+        timestamp: Date.now(),
+      };
+      localStorage.setItem("pomodoroTimerState", JSON.stringify(timerState));
+      console.log("⏰ 타이머 상태 저장됨");
+    }
+  };
+
+  // 타이머 상태 복원 함수
+  const restoreTimerState = () => {
+    try {
+      const savedState = localStorage.getItem("pomodoroTimerState");
+      if (!savedState) return;
+
+      const timerState = JSON.parse(savedState);
+      const now = Date.now();
+
+      // 저장된 지 1시간 이상 지났으면 무시
+      if (now - timerState.timestamp > 60 * 60 * 1000) {
+        localStorage.removeItem("pomodoroTimerState");
+        return;
+      }
+
+      // 활성 상태였다면 복원
+      if (timerState.isActive && timerState.startTime) {
+        const actualElapsed = Math.floor((now - timerState.startTime) / 1000);
+        const newTime = Math.max(0, timerState.totalDuration - actualElapsed);
+
+        if (newTime > 0) {
+          setIsActive(true);
+          setTime(newTime);
+          setSelectedMinutes(timerState.selectedMinutes);
+          setSessionStartTime(timerState.sessionStartTime);
+          setIsBreak(timerState.isBreak);
+          setCurrentSessionSaved(timerState.currentSessionSaved);
+
+          // ref 값들 복원
+          startTimeRef.current = timerState.startTime;
+          totalDurationRef.current = timerState.totalDuration;
+          lastUpdateTimeRef.current = now;
+
+          // 진행률 업데이트
+          const progress = ((timerState.totalDuration - newTime) / timerState.totalDuration) * 100;
+          updateCircleBlocks(progress);
+
+          console.log(`⏰ 타이머 상태 복원: ${newTime}초 남음`);
+        } else {
+          // 시간이 다 된 경우
+          localStorage.removeItem("pomodoroTimerState");
+          handleTimerComplete();
+        }
+      }
+    } catch (error) {
+      console.error("타이머 상태 복원 실패:", error);
+      localStorage.removeItem("pomodoroTimerState");
+    }
+  };
+
+  // 백그라운드 타이머 동기화 함수
+  const syncBackgroundTimer = () => {
+    if (isActive && startTimeRef.current) {
+      const now = Date.now();
+      const actualElapsed = Math.floor((now - startTimeRef.current) / 1000);
+      const newTime = Math.max(0, totalDurationRef.current - actualElapsed);
+
+      console.log(`⏰ 백그라운드 동기화: ${actualElapsed}초 경과, 남은 시간: ${newTime}초`);
+
+      setTime(newTime);
+
+      // 시간이 다 된 경우 완료 처리
+      if (newTime <= 0) {
+        localStorage.removeItem("pomodoroTimerState");
+        handleTimerComplete();
+      } else {
+        // 진행률 업데이트
+        const progress = ((totalDurationRef.current - newTime) / totalDurationRef.current) * 100;
+        updateCircleBlocks(progress);
+      }
+    }
+  };
 
   const availableTasks = selectedProject
     ? (projectTodos[selectedProject.id] || []).filter((todo) => !todo.completed)
