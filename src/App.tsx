@@ -125,24 +125,16 @@ function App() {
     mode: "light",
   });
 
-  // 테마 변경 함수 수정
+  // 테마 변경 함수
   const handleThemeChange = (newSettings: Partial<ThemeSettings>) => {
-    try {
-      const updatedSettings = { ...themeSettings, ...newSettings };
-      setThemeSettings(updatedSettings);
+    const updatedSettings = { ...themeSettings, ...newSettings };
+    setThemeSettings(updatedSettings);
 
-      // localStorage에 저장
-      const savedSettings = localStorage.getItem("settings");
-      const settings = savedSettings ? JSON.parse(savedSettings) : {};
-      const updatedPreferences = { ...settings, theme: updatedSettings };
-      localStorage.setItem("settings", JSON.stringify(updatedPreferences));
-
-      // electron API에도 저장 (있다면)
-      if (window.electronAPI) {
-        window.electronAPI.saveData("settings", updatedPreferences);
-      }
-    } catch (error) {
-      console.error("테마 변경 실패:", error);
+    // 설정 저장
+    if (window.electronAPI) {
+      window.electronAPI.saveData("theme", updatedSettings);
+    } else {
+      localStorage.setItem("theme", JSON.stringify(updatedSettings));
     }
   };
 
@@ -152,45 +144,25 @@ function App() {
       try {
         // 먼저 electron API에서 시도 (있다면)
         if (window.electronAPI) {
-          const result = await window.electronAPI.loadData("settings");
-          if (result.success && result.data && result.data.theme) {
-            const userTheme = result.data.theme;
-
-            // 이전 버전 호환성 체크
-            if (typeof userTheme === "string") {
-              // 이전 버전: "light" | "dark" | "auto"
-              setThemeSettings({
-                type: "penguin",
-                mode: userTheme as ColorMode,
-              });
-            } else {
-              // 새 버전: ThemeSettings 객체
-              setThemeSettings(userTheme);
-            }
+          const result = await window.electronAPI.loadData("theme");
+          if (result.success && result.data) {
+            setThemeSettings(result.data);
+            console.log("Electron에서 테마 로드:", result.data);
             return;
           }
         }
 
-        // fallback: localStorage에서 로드
-        const savedSettings = localStorage.getItem("settings");
-        if (savedSettings) {
-          const settings = JSON.parse(savedSettings);
-          const userTheme = settings.theme;
-
-          if (typeof userTheme === "string") {
-            // 이전 버전 호환성
-            setThemeSettings({
-              type: "penguin",
-              mode: userTheme as ColorMode,
-            });
-          } else if (userTheme) {
-            // 새 버전
-            setThemeSettings(userTheme);
-          }
+        // electron API가 없거나 데이터가 없으면 localStorage에서 시도
+        const savedTheme = localStorage.getItem("theme");
+        if (savedTheme) {
+          const parsed = JSON.parse(savedTheme);
+          setThemeSettings(parsed);
+          console.log("localStorage에서 테마 로드:", parsed);
+        } else {
+          console.log("저장된 테마가 없어서 기본값 사용");
         }
       } catch (error) {
-        console.error("테마 설정 로드 실패:", error);
-        setThemeSettings({ type: "penguin", mode: "light" });
+        console.error("테마 로드 실패:", error);
       }
     };
 
