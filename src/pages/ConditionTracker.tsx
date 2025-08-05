@@ -263,7 +263,7 @@ const ConditionTracker: React.FC<ConditionTrackerProps> = ({ themeConfig }) => {
             {themeConfig?.emoji || "🐟"} 컨디션 {themeConfig?.concepts?.environment?.split(" ")[0] || "추적"}
           </Typography>
           <Typography variant="body1" color="textSecondary">
-            {themeConfig?.concepts?.animal || "동물"}의 일상처럼 시간별 컨디션을 기록하고 패턴을 분석해보세요
+            {themeConfig?.concepts?.animal || "동물"}처럼 시간별 컨디션을 기록하고 패턴을 분석해보세요
           </Typography>
         </Box>
 

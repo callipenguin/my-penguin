@@ -265,8 +265,8 @@ const Dashboard: React.FC<DashboardProps> = ({ themeConfig }) => {
                     {themeConfig?.emoji || "🦊"}
                   </Typography>
                   <Typography variant="h6" color="white" fontWeight="bold">
-                    {themeConfig?.concepts?.animal || "동물"}이{" "}
-                    {themeConfig?.concepts?.environment?.split(" ")[0] || "환경"}을 탐험 중이에요!
+                    {themeConfig?.concepts?.animal || "동물"}의{" "}
+                    {themeConfig?.concepts?.environment?.split(" ")[0] || "환경"} 탐험!
                   </Typography>
                   <Typography variant="body2" color="white" sx={{ opacity: 0.8, mt: 1 }}>
                     {themeConfig?.emoji || "🦊"} 곧 3D {themeConfig?.concepts?.animal || "동물"} 씬이 추가될 예정입니다{" "}

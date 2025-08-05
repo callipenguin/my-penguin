@@ -118,12 +118,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ themeConfig }) => {
         // 성공 메시지 표시
         const message =
           actionType === "approve"
-            ? `✅ ${selectedRequest.displayName ?? selectedRequest.email}님이 ${
+            ? `✅ ${selectedRequest.displayName ?? selectedRequest.email}님 ${
                 themeConfig?.concepts?.environment?.split(" ")[0] || "빙하"
-              } 기지에 입장할 수 있게 되었어요! 🎉`
-            : `❌ ${selectedRequest.displayName ?? selectedRequest.email}님의 ${
+              } 기지 입장 허가! 🎉`
+            : `❌ ${selectedRequest.displayName ?? selectedRequest.email}님 ${
                 themeConfig?.concepts?.environment?.split(" ")[0] || "빙하"
-              } 기지 접근을 차단했어요.`;
+              } 기지 접근 차단!`;
 
         setSnackbar({
           open: true,
@@ -250,11 +250,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ themeConfig }) => {
             </Box>
             <Typography variant="h6" sx={{ opacity: 0.9, mb: 1 }}>
               {themeConfig?.concepts?.animal || "펭귄"} 비서{" "}
-              {themeConfig?.concepts?.environment?.split(" ")[0] || "빙하"} 기지 접근 권한을 관리하세요
+              {themeConfig?.concepts?.environment?.split(" ")[0] || "빙하"} 기지 접근 권한 관리
             </Typography>
             <Typography variant="body1" sx={{ opacity: 0.8 }}>
-              새로운 {themeConfig?.concepts?.animal || "펭귄"}들의 입장 요청을 검토하고 승인해주세요{" "}
-              {themeConfig?.emoji || "❄️"}
+              새로운 {themeConfig?.concepts?.animal || "펭귄"}들 입장 요청 검토 및 승인 {themeConfig?.emoji || "❄️"}
             </Typography>
           </CardContent>
         </Card>
@@ -388,11 +387,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ themeConfig }) => {
               <Box sx={{ textAlign: "center", py: 8 }}>
                 <Typography sx={{ fontSize: "4rem", mb: 2 }}>🏔️</Typography>
                 <Typography variant="h6" color="textSecondary" gutterBottom>
-                  아직 {themeConfig?.concepts?.environment?.split(" ")[0] || "빙하"} 기지 접근 요청이 없어요
+                  {themeConfig?.concepts?.environment?.split(" ")[0] || "빙하"} 기지 접근 요청 대기 중
                 </Typography>
                 <Typography variant="body2" color="textSecondary">
-                  새로운 {themeConfig?.concepts?.animal || "펭귄"}들이 찾아오길 기다리고 있어요{" "}
-                  {themeConfig?.emoji || "❄️"}
+                  새로운 {themeConfig?.concepts?.animal || "펭귄"}들이 찾아올 예정 {themeConfig?.emoji || "❄️"}
                 </Typography>
               </Box>
             ) : (
@@ -594,12 +592,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ themeConfig }) => {
 
               <Typography variant="body1" sx={{ mb: 3, textAlign: "center", fontWeight: "medium" }}>
                 {actionType === "approve"
-                  ? `🎉 이 ${themeConfig?.concepts?.animal || "펭귄"}이 ${
+                  ? `🎉 ${themeConfig?.concepts?.animal || "펭귄"} ${
                       themeConfig?.concepts?.environment?.split(" ")[0] || "빙하"
-                    } 기지에 입장할 수 있도록 허가하시겠어요?`
-                  : `🚫 이 ${themeConfig?.concepts?.animal || "펭귄"}의 ${
+                    } 기지 입장 허가하시겠어요?`
+                  : `🚫 ${themeConfig?.concepts?.animal || "펭귄"} ${
                       themeConfig?.concepts?.environment?.split(" ")[0] || "빙하"
-                    } 기지 접근을 차단하시겠어요?`}
+                    } 기지 접근 차단하시겠어요?`}
               </Typography>
 
               <TextField

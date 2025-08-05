@@ -23,7 +23,7 @@ import AdminPanel from "./pages/AdminPanel";
 import Pomodoro from "./pages/Pomodoro";
 
 // Firebase
-import { onAuthStateChange, getUserAccessStatus, isAdmin } from "./utils/firebase";
+import { onAuthStateChange, getUserAccessStatus, isAdmin, saveAccessRequest } from "./utils/firebase";
 
 // Theme System
 import { getThemeConfig, getThemeColors } from "./config/themes";
@@ -402,7 +402,6 @@ const AccessRequestForm: React.FC<{ user: User }> = ({ user }) => {
 
     setSubmitting(true);
     try {
-      const { saveAccessRequest } = await import("./utils/firebase");
       const result = await saveAccessRequest({
         email: user.email,
         displayName: user.displayName || "이름 없음",

@@ -41,7 +41,7 @@ import {
   Assessment,
 } from "@mui/icons-material";
 import { ConditionEntry, ConditionLevel, WeeklyPomodoroStats, PomodoroSession, ThemeConfigExtended } from "../types";
-import { loadUserData, getCurrentUser } from "../utils/firebase";
+import { loadUserData, getCurrentUser, loadPomodoroSessions, getWeeklyPomodoroStats } from "../utils/firebase";
 import dayjs from "dayjs";
 
 interface AnalyticsProps {
@@ -159,11 +159,9 @@ const Analytics: React.FC<AnalyticsProps> = ({ themeConfig }) => {
       setPomodoroLoading(true);
       const user = getCurrentUser();
       if (user) {
-        const result = await loadUserData(user.uid, "pomodoroStats");
+        const result = await getWeeklyPomodoroStats(user.uid, selectedWeek);
         if (result.success && result.data) {
-          // 선택된 주차의 데이터 찾기
-          const weekData = result.data.find((week: WeeklyPomodoroStats) => week.weekStart === selectedWeek);
-          setPomodoroStats(weekData || null);
+          setPomodoroStats(result.data);
         }
       }
     } catch (error) {
@@ -177,20 +175,28 @@ const Analytics: React.FC<AnalyticsProps> = ({ themeConfig }) => {
     try {
       const user = getCurrentUser();
       if (user) {
-        const result = await loadUserData(user.uid, "pomodoroSessions");
+        // 주차의 시작일과 끝일 계산
+        const weekStart = dayjs(selectedWeek);
+        const weekEnd = weekStart.add(6, "day");
+
+        const result = await loadPomodoroSessions(
+          user.uid,
+          weekStart.format("YYYY-MM-DD"),
+          weekEnd.format("YYYY-MM-DD")
+        );
         if (result.success && result.data) {
           const sessions = result.data as PomodoroSession[];
           setAllPomodoroSessions(sessions);
 
           // 선택된 주차의 세션들 필터링
-          const weekStart = dayjs(selectedWeek);
-          const weekEnd = weekStart.add(6, "day");
+          const weekStartFilter = weekStart;
+          const weekEndFilter = weekEnd;
 
           const weekSessions = sessions.filter((session) => {
             const sessionDate = dayjs(session.startTime);
             return (
-              sessionDate.isAfter(weekStart.subtract(1, "day")) &&
-              sessionDate.isBefore(weekEnd.add(1, "day")) &&
+              sessionDate.isAfter(weekStartFilter.subtract(1, "day")) &&
+              sessionDate.isBefore(weekEndFilter.add(1, "day")) &&
               session.completed &&
               session.sessionType === "work"
             );
@@ -199,7 +205,7 @@ const Analytics: React.FC<AnalyticsProps> = ({ themeConfig }) => {
           // 일별 상세 데이터 생성
           const dailyData: DailyPomodoroDetail[] = [];
           for (let i = 0; i < 7; i++) {
-            const date = weekStart.add(i, "day");
+            const date = weekStartFilter.add(i, "day");
             const dayStr = date.format("YYYY-MM-DD");
             const daySessions = weekSessions.filter(
               (session) => dayjs(session.startTime).format("YYYY-MM-DD") === dayStr
