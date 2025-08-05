@@ -184,7 +184,8 @@ export interface PomodoroSession {
   taskId: string;
   taskTitle: string;
   sessionType: "work" | "break";
-  duration: number; // 분 단위 (25분 또는 5분)
+  duration: number; // 分 단위 (25분 또는 5분) - 설정된 시간
+  actualDuration?: number; // 분 단위 - 실제 경과 시간 (중도 중단 시)
   startTime: string; // ISO string
   endTime: string; // ISO string
   completed: boolean;

@@ -234,18 +234,35 @@ const SheepScene: React.FC<SheepSceneProps> = ({ width = 800, height = 400, proj
             borderRadius: 2,
             border: "2px solid #4caf50",
             backdropFilter: "blur(8px)",
-            backgroundColor: "rgba(232, 245, 232, 0.95)",
+            backgroundColor: theme.palette.mode === "dark" ? "rgba(20, 40, 20, 0.95)" : "rgba(232, 245, 232, 0.95)",
           }}
         >
           <CardContent sx={{ p: 2 }}>
-            <Typography variant="subtitle1" fontWeight="bold" color="#4caf50">
+            <Typography
+              variant="subtitle1"
+              fontWeight="bold"
+              sx={{
+                color: theme.palette.mode === "dark" ? "#81C784" : "#4caf50",
+              }}
+            >
               🐑 {hoveredProject.title}
             </Typography>
-            <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
+            <Typography
+              variant="body2"
+              sx={{
+                mt: 1,
+                color: theme.palette.mode === "dark" ? "rgba(255, 255, 255, 0.8)" : "rgba(0, 0, 0, 0.6)",
+              }}
+            >
               {hoveredProject.description}
             </Typography>
             <Box sx={{ mt: 1, display: "flex", alignItems: "center", gap: 1 }}>
-              <Typography variant="caption" color="textPrimary">
+              <Typography
+                variant="caption"
+                sx={{
+                  color: theme.palette.mode === "dark" ? "rgba(255, 255, 255, 0.9)" : "rgba(0, 0, 0, 0.8)",
+                }}
+              >
                 진행률: {hoveredProject.progress}%
               </Typography>
               <Box

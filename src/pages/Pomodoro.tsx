@@ -78,6 +78,11 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
   const [isBreak, setIsBreak] = useState(false);
   const [completedSessions, setCompletedSessions] = useState(0);
 
+  // 백그라운드 타이머를 위한 참조 값들
+  const startTimeRef = useRef<number | null>(null);
+  const totalDurationRef = useRef<number>(0);
+  const lastUpdateTimeRef = useRef<number>(0);
+
   // 애니메이션 상태 (개선된 원형 시스템)
   const [animalPosition, setAnimalPosition] = useState({ x: 50, y: 50 });
   const [circleBlocks, setCircleBlocks] = useState<Array<{ id: number; angle: number; filled: boolean }>>([]);
@@ -90,6 +95,7 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
     taskTitle: string;
     sessionType: string;
     duration: number;
+    actualMinutes?: number; // 실제 경과 시간 추가
   } | null>(null);
 
   // 프로젝트/테스크 생성 다이얼로그 상태
@@ -120,6 +126,29 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
       if (!document.hidden) {
         console.log("🎮 Pomodoro 페이지 활성화 - 데이터 새로고침");
         loadProjectTodos();
+
+        // 백그라운드 타이머 동기화
+        if (isActive && startTimeRef.current) {
+          const now = Date.now();
+          const actualElapsed = Math.floor((now - startTimeRef.current) / 1000);
+          const newTime = Math.max(0, totalDurationRef.current - actualElapsed);
+
+          console.log(`⏰ 백그라운드 동기화: ${actualElapsed}초 경과, 남은 시간: ${newTime}초`);
+
+          setTime(newTime);
+
+          // 시간이 다 된 경우 완료 처리
+          if (newTime <= 0) {
+            handleTimerComplete();
+          } else {
+            // 진행률 업데이트
+            const progress = ((totalDurationRef.current - newTime) / totalDurationRef.current) * 100;
+            updateCircleBlocks(progress);
+          }
+        }
+      } else {
+        console.log("🎮 Pomodoro 페이지 비활성화");
+        lastUpdateTimeRef.current = Date.now();
       }
     };
 
@@ -359,21 +388,85 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
   };
 
   const startTimer = () => {
+    const now = Date.now();
     setIsActive(true);
     setSessionStartTime(new Date().toISOString());
+
+    // 백그라운드 타이머 설정
+    startTimeRef.current = now;
+    totalDurationRef.current = time;
+    lastUpdateTimeRef.current = now;
+
     initializeCircleBlocks(); // 블록 초기화
+    console.log(`⏰ 타이머 시작: ${time}초 (${Math.floor(time / 60)}분 ${time % 60}초)`);
   };
 
   const pauseTimer = () => {
+    if (startTimeRef.current) {
+      const now = Date.now();
+      const actualElapsed = Math.floor((now - startTimeRef.current) / 1000);
+      const remainingTime = Math.max(0, totalDurationRef.current - actualElapsed);
+
+      console.log(`⏸️ 타이머 일시정지: ${actualElapsed}초 경과, ${remainingTime}초 남음`);
+
+      // 실제 경과 시간이 있다면 세션 저장 (부분 완료)
+      if (actualElapsed > 0 && sessionStartTime && selectedProject && selectedTask) {
+        const actualMinutes = Math.round((actualElapsed / 60) * 100) / 100; // 소수점 2자리까지
+        savePomodoroSession(getCurrentUser()?.uid || "", {
+          projectId: selectedProject.id,
+          projectTitle: selectedProject.title,
+          taskId: selectedTask.id,
+          taskTitle: selectedTask.title,
+          sessionType: isBreak ? ("break" as const) : ("work" as const),
+          duration: selectedMinutes,
+          actualDuration: actualMinutes, // 실제 경과 시간 추가
+          startTime: sessionStartTime,
+          endTime: new Date().toISOString(),
+          completed: false, // 중간에 멈춤
+        });
+      }
+
+      setTime(remainingTime);
+    }
+
     setIsActive(false);
+    startTimeRef.current = null;
+    totalDurationRef.current = 0;
   };
 
   const resetTimer = () => {
+    const wasActive = isActive;
+    const actualElapsed = startTimeRef.current ? Math.floor((Date.now() - startTimeRef.current) / 1000) : 0;
+
+    // 실제 경과 시간이 있다면 세션 저장 (리셋으로 중단)
+    if (wasActive && actualElapsed > 0 && sessionStartTime && selectedProject && selectedTask) {
+      const actualMinutes = Math.round((actualElapsed / 60) * 100) / 100;
+      savePomodoroSession(getCurrentUser()?.uid || "", {
+        projectId: selectedProject.id,
+        projectTitle: selectedProject.title,
+        taskId: selectedTask.id,
+        taskTitle: selectedTask.title,
+        sessionType: isBreak ? ("break" as const) : ("work" as const),
+        duration: selectedMinutes,
+        actualDuration: actualMinutes,
+        startTime: sessionStartTime,
+        endTime: new Date().toISOString(),
+        completed: false, // 리셋으로 중단
+      });
+    }
+
     setIsActive(false);
     setTime(selectedMinutes * 60);
     setSessionStartTime(null);
     setAnimalPosition({ x: 50, y: 50 }); // 12시 방향으로 초기화
+
+    // 백그라운드 타이머 초기화
+    startTimeRef.current = null;
+    totalDurationRef.current = 0;
+    lastUpdateTimeRef.current = 0;
+
     initializeCircleBlocks(); // 블록 초기화
+    console.log(`🔄 타이머 리셋: ${selectedMinutes}분으로 초기화`);
   };
 
   // 요란한 알림 함수
@@ -418,6 +511,11 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
   };
 
   const handleTimerComplete = async () => {
+    const actualElapsed = startTimeRef.current
+      ? Math.floor((Date.now() - startTimeRef.current) / 1000)
+      : selectedMinutes * 60;
+    const actualMinutes = Math.round((actualElapsed / 60) * 100) / 100;
+
     setIsActive(false);
 
     // 🎉 요란한 알림!
@@ -435,6 +533,7 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
             taskTitle: selectedTask.title,
             sessionType: isBreak ? ("break" as const) : ("work" as const),
             duration: selectedMinutes,
+            actualDuration: actualMinutes, // 실제 경과 시간 추가
             startTime: sessionStartTime,
             endTime: new Date().toISOString(),
             completed: true,
@@ -447,6 +546,7 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
               taskTitle: selectedTask.title,
               sessionType: isBreak ? "휴식" : "집중",
               duration: selectedMinutes,
+              actualMinutes: actualMinutes, // 실제 경과 시간 추가
             });
             setShowCelebration(true);
             setTimeout(() => setShowCelebration(false), 5000);
@@ -469,7 +569,13 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
       setTime(25 * 60);
     }
 
+    // 백그라운드 타이머 초기화
+    startTimeRef.current = null;
+    totalDurationRef.current = 0;
+    lastUpdateTimeRef.current = 0;
+
     setSessionStartTime(null);
+    console.log(`✅ 타이머 완료: ${actualMinutes}분 경과`);
   };
 
   // 알림 권한 요청
@@ -536,6 +642,12 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
                 <>
                   <Typography variant="h6" sx={{ mb: 2, opacity: 0.9 }}>
                     {lastCompletedSession.duration}분 {lastCompletedSession.sessionType} 세션 완료
+                    {lastCompletedSession.actualMinutes &&
+                      lastCompletedSession.actualMinutes !== lastCompletedSession.duration && (
+                        <Typography variant="body2" sx={{ opacity: 0.7, mt: 0.5 }}>
+                          (실제 {lastCompletedSession.actualMinutes}분 집중)
+                        </Typography>
+                      )}
                   </Typography>
                   <Box
                     sx={{

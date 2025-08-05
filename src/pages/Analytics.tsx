@@ -26,6 +26,17 @@ import {
   TableRow,
   Paper,
   Divider,
+  IconButton,
+  TextField,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Tooltip,
 } from "@mui/material";
 import {
   Timeline,
@@ -39,9 +50,20 @@ import {
   TrendingUp,
   PieChart,
   Assessment,
+  Edit,
+  Save,
+  Cancel,
+  Add,
+  Delete,
 } from "@mui/icons-material";
 import { ConditionEntry, ConditionLevel, WeeklyPomodoroStats, PomodoroSession, ThemeConfigExtended } from "../types";
-import { loadUserData, getCurrentUser, loadPomodoroSessions, getWeeklyPomodoroStats } from "../utils/firebase";
+import {
+  loadUserData,
+  getCurrentUser,
+  loadPomodoroSessions,
+  getWeeklyPomodoroStats,
+  savePomodoroSession,
+} from "../utils/firebase";
 import dayjs from "dayjs";
 
 interface AnalyticsProps {
@@ -74,6 +96,16 @@ const Analytics: React.FC<AnalyticsProps> = ({ themeConfig }) => {
   const [dailyDetails, setDailyDetails] = useState<DailyPomodoroDetail[]>([]);
   const [projectStats, setProjectStats] = useState<ProjectTimeStats[]>([]);
   const [allPomodoroSessions, setAllPomodoroSessions] = useState<PomodoroSession[]>([]);
+
+  // 편집 관련 상태
+  const [editingSession, setEditingSession] = useState<string | null>(null);
+  const [editValues, setEditValues] = useState<{ [sessionId: string]: Partial<PomodoroSession> }>({});
+  const [addSessionDialog, setAddSessionDialog] = useState(false);
+  const [newSessionData, setNewSessionData] = useState<Partial<PomodoroSession>>({
+    sessionType: "work",
+    duration: 25,
+    actualDuration: 25,
+  });
 
   // 테마별 컨디션 레벨
   const getConditionLevels = () => {
@@ -350,6 +382,124 @@ const Analytics: React.FC<AnalyticsProps> = ({ themeConfig }) => {
     return `${animal}의 생활 패턴과 뽀모도로 집중 세션을 분석해서 최적의 시간을 찾아드려요`;
   };
 
+  // 뽀모도로 세션 편집 함수들
+  const handleEditSession = (session: PomodoroSession) => {
+    setEditingSession(session.id);
+    setEditValues({
+      [session.id]: {
+        duration: session.duration,
+        actualDuration: session.actualDuration || session.duration,
+        projectTitle: session.projectTitle,
+        taskTitle: session.taskTitle,
+      },
+    });
+  };
+
+  const handleSaveEdit = async (sessionId: string) => {
+    const editValue = editValues[sessionId];
+    if (!editValue) return;
+
+    try {
+      const user = getCurrentUser();
+      if (!user) return;
+
+      // 기존 세션 찾기
+      const originalSession = allPomodoroSessions.find((s) => s.id === sessionId);
+      if (!originalSession) return;
+
+      // 업데이트된 세션 데이터
+      const updatedSession: PomodoroSession = {
+        ...originalSession,
+        duration: editValue.duration || originalSession.duration,
+        actualDuration: editValue.actualDuration || editValue.duration || originalSession.duration,
+        projectTitle: editValue.projectTitle || originalSession.projectTitle,
+        taskTitle: editValue.taskTitle || originalSession.taskTitle,
+        updatedAt: new Date().toISOString(),
+      };
+
+      // 임시로 로컬 상태 업데이트
+      setAllPomodoroSessions((prev) => prev.map((session) => (session.id === sessionId ? updatedSession : session)));
+
+      setEditingSession(null);
+      setEditValues({});
+      console.log(`✅ 세션 수정 완료: ${sessionId}`);
+
+      // 데이터 새로고침
+      loadDetailedPomodoroData();
+    } catch (error) {
+      console.error("세션 수정 실패:", error);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingSession(null);
+    setEditValues({});
+  };
+
+  const handleDeleteSession = async (sessionId: string) => {
+    if (!confirm("이 세션을 삭제하시겠습니까?")) return;
+
+    try {
+      const user = getCurrentUser();
+      if (!user) return;
+
+      // 임시로 로컬 상태 업데이트
+      setAllPomodoroSessions((prev) => prev.filter((session) => session.id !== sessionId));
+
+      console.log(`🗑️ 세션 삭제 완료: ${sessionId}`);
+
+      // 데이터 새로고침
+      loadDetailedPomodoroData();
+    } catch (error) {
+      console.error("세션 삭제 실패:", error);
+    }
+  };
+
+  const handleAddSession = async () => {
+    if (!newSessionData.projectTitle || !newSessionData.taskTitle || !newSessionData.duration) {
+      alert("모든 필드를 입력해주세요.");
+      return;
+    }
+
+    try {
+      const user = getCurrentUser();
+      if (!user) return;
+
+      const now = new Date();
+      const newSession: Omit<PomodoroSession, "id" | "userId" | "createdAt" | "updatedAt"> = {
+        projectId: `proj_${Date.now()}`,
+        projectTitle: newSessionData.projectTitle!,
+        taskId: `task_${Date.now()}`,
+        taskTitle: newSessionData.taskTitle!,
+        sessionType: newSessionData.sessionType as "work" | "break",
+        duration: newSessionData.duration!,
+        actualDuration: newSessionData.actualDuration || newSessionData.duration!,
+        startTime: newSessionData.startTime || now.toISOString(),
+        endTime: newSessionData.endTime || new Date(now.getTime() + newSessionData.duration! * 60000).toISOString(),
+        completed: true,
+      };
+
+      // Firebase에 저장
+      const result = await savePomodoroSession(user.uid, newSession);
+
+      if (result.success) {
+        setAddSessionDialog(false);
+        setNewSessionData({
+          sessionType: "work",
+          duration: 25,
+          actualDuration: 25,
+        });
+
+        console.log("✅ 새 세션 추가 완료");
+
+        // 데이터 새로고침
+        loadDetailedPomodoroData();
+      }
+    } catch (error) {
+      console.error("세션 추가 실패:", error);
+    }
+  };
+
   const bestDay = Object.entries(weeklyStats)
     .filter(([_, data]) => data.count > 0)
     .sort((a, b) => b[1].average - a[1].average)[0];
@@ -395,6 +545,9 @@ const Analytics: React.FC<AnalyticsProps> = ({ themeConfig }) => {
             }}
           >
             새로고침
+          </Button>
+          <Button size="small" variant="contained" startIcon={<Add />} onClick={() => setAddSessionDialog(true)}>
+            세션 추가
           </Button>
         </Box>
 
@@ -622,17 +775,162 @@ const Analytics: React.FC<AnalyticsProps> = ({ themeConfig }) => {
                                       <TableCell>프로젝트</TableCell>
                                       <TableCell>작업</TableCell>
                                       <TableCell align="right">집중시간</TableCell>
+                                      <TableCell align="right">실제시간</TableCell>
+                                      <TableCell align="center">상태</TableCell>
+                                      <TableCell align="center">편집</TableCell>
                                     </TableRow>
                                   </TableHead>
                                   <TableBody>
                                     {day.sessions
                                       .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
                                       .map((session, idx) => (
-                                        <TableRow key={idx}>
+                                        <TableRow key={session.id}>
                                           <TableCell>{dayjs(session.startTime).format("HH:mm")}</TableCell>
-                                          <TableCell>{session.projectTitle}</TableCell>
-                                          <TableCell>{session.taskTitle}</TableCell>
-                                          <TableCell align="right">{session.duration}분</TableCell>
+                                          <TableCell>
+                                            {editingSession === session.id ? (
+                                              <TextField
+                                                size="small"
+                                                value={editValues[session.id]?.projectTitle || session.projectTitle}
+                                                onChange={(e) =>
+                                                  setEditValues((prev) => ({
+                                                    ...prev,
+                                                    [session.id]: {
+                                                      ...prev[session.id],
+                                                      projectTitle: e.target.value,
+                                                    },
+                                                  }))
+                                                }
+                                              />
+                                            ) : (
+                                              session.projectTitle
+                                            )}
+                                          </TableCell>
+                                          <TableCell>
+                                            {editingSession === session.id ? (
+                                              <TextField
+                                                size="small"
+                                                value={editValues[session.id]?.taskTitle || session.taskTitle}
+                                                onChange={(e) =>
+                                                  setEditValues((prev) => ({
+                                                    ...prev,
+                                                    [session.id]: {
+                                                      ...prev[session.id],
+                                                      taskTitle: e.target.value,
+                                                    },
+                                                  }))
+                                                }
+                                              />
+                                            ) : (
+                                              session.taskTitle
+                                            )}
+                                          </TableCell>
+                                          <TableCell align="right">
+                                            {editingSession === session.id ? (
+                                              <TextField
+                                                size="small"
+                                                type="number"
+                                                value={editValues[session.id]?.duration || session.duration}
+                                                onChange={(e) =>
+                                                  setEditValues((prev) => ({
+                                                    ...prev,
+                                                    [session.id]: {
+                                                      ...prev[session.id],
+                                                      duration: parseFloat(e.target.value) || 0,
+                                                    },
+                                                  }))
+                                                }
+                                                sx={{ width: "70px" }}
+                                              />
+                                            ) : (
+                                              `${session.duration}분`
+                                            )}
+                                          </TableCell>
+                                          <TableCell align="right">
+                                            {editingSession === session.id ? (
+                                              <TextField
+                                                size="small"
+                                                type="number"
+                                                value={
+                                                  editValues[session.id]?.actualDuration ||
+                                                  session.actualDuration ||
+                                                  session.duration
+                                                }
+                                                onChange={(e) =>
+                                                  setEditValues((prev) => ({
+                                                    ...prev,
+                                                    [session.id]: {
+                                                      ...prev[session.id],
+                                                      actualDuration: parseFloat(e.target.value) || 0,
+                                                    },
+                                                  }))
+                                                }
+                                                sx={{ width: "70px" }}
+                                              />
+                                            ) : (
+                                              <Box>
+                                                <Typography variant="body2">
+                                                  {session.actualDuration
+                                                    ? `${session.actualDuration}분`
+                                                    : `${session.duration}분`}
+                                                </Typography>
+                                                {session.actualDuration &&
+                                                  session.actualDuration !== session.duration && (
+                                                    <Typography variant="caption" color="text.secondary">
+                                                      (설정: {session.duration}분)
+                                                    </Typography>
+                                                  )}
+                                              </Box>
+                                            )}
+                                          </TableCell>
+                                          <TableCell align="center">
+                                            <Chip
+                                              label={session.completed ? "완료" : "중단"}
+                                              size="small"
+                                              color={session.completed ? "success" : "warning"}
+                                              variant={
+                                                session.actualDuration && session.actualDuration !== session.duration
+                                                  ? "outlined"
+                                                  : "filled"
+                                              }
+                                            />
+                                          </TableCell>
+                                          <TableCell align="center">
+                                            {editingSession === session.id ? (
+                                              <Box sx={{ display: "flex", gap: 0.5 }}>
+                                                <Tooltip title="저장">
+                                                  <IconButton
+                                                    size="small"
+                                                    color="primary"
+                                                    onClick={() => handleSaveEdit(session.id)}
+                                                  >
+                                                    <Save />
+                                                  </IconButton>
+                                                </Tooltip>
+                                                <Tooltip title="취소">
+                                                  <IconButton size="small" onClick={handleCancelEdit}>
+                                                    <Cancel />
+                                                  </IconButton>
+                                                </Tooltip>
+                                              </Box>
+                                            ) : (
+                                              <Box sx={{ display: "flex", gap: 0.5 }}>
+                                                <Tooltip title="편집">
+                                                  <IconButton size="small" onClick={() => handleEditSession(session)}>
+                                                    <Edit />
+                                                  </IconButton>
+                                                </Tooltip>
+                                                <Tooltip title="삭제">
+                                                  <IconButton
+                                                    size="small"
+                                                    color="error"
+                                                    onClick={() => handleDeleteSession(session.id)}
+                                                  >
+                                                    <Delete />
+                                                  </IconButton>
+                                                </Tooltip>
+                                              </Box>
+                                            )}
+                                          </TableCell>
                                         </TableRow>
                                       ))}
                                   </TableBody>
@@ -752,6 +1050,62 @@ const Analytics: React.FC<AnalyticsProps> = ({ themeConfig }) => {
           </Card>
         </Grid>
       </Grid>
+
+      {/* 새 세션 추가 다이얼로그 */}
+      <Dialog open={addSessionDialog} onClose={() => setAddSessionDialog(false)}>
+        <DialogTitle>새 뽀모도로 세션 추가</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
+            <TextField
+              label="프로젝트 제목"
+              value={newSessionData.projectTitle}
+              onChange={(e) => setNewSessionData((prev) => ({ ...prev, projectTitle: e.target.value }))}
+              fullWidth
+            />
+            <TextField
+              label="작업 제목"
+              value={newSessionData.taskTitle}
+              onChange={(e) => setNewSessionData((prev) => ({ ...prev, taskTitle: e.target.value }))}
+              fullWidth
+            />
+            <TextField
+              label="집중 시간 (분)"
+              type="number"
+              value={newSessionData.duration}
+              onChange={(e) => setNewSessionData((prev) => ({ ...prev, duration: parseFloat(e.target.value) || 0 }))}
+              fullWidth
+            />
+            <TextField
+              label="실제 집중 시간 (분)"
+              type="number"
+              value={newSessionData.actualDuration}
+              onChange={(e) =>
+                setNewSessionData((prev) => ({ ...prev, actualDuration: parseFloat(e.target.value) || 0 }))
+              }
+              fullWidth
+            />
+            <FormControl fullWidth>
+              <InputLabel>세션 타입</InputLabel>
+              <Select
+                value={newSessionData.sessionType}
+                label="세션 타입"
+                onChange={(e) =>
+                  setNewSessionData((prev) => ({ ...prev, sessionType: e.target.value as "work" | "break" }))
+                }
+              >
+                <MenuItem value="work">작업</MenuItem>
+                <MenuItem value="break">휴식</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAddSessionDialog(false)}>취소</Button>
+          <Button onClick={handleAddSession} variant="contained">
+            추가
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
