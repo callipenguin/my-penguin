@@ -286,7 +286,7 @@ const Dashboard: React.FC<DashboardProps> = ({ themeConfig }) => {
         <Grid container spacing={3}>
           {/* 왼쪽: Scene */}
           <Grid item xs={12} lg={8}>
-            <Card sx={{ mb: 3, borderRadius: 3, overflow: "hidden" }}>
+            <Card sx={{ mb: 3, borderRadius: 2, overflow: "hidden" }}>
               <CardContent sx={{ p: 0 }}>
                 <Box sx={{ textAlign: "center", p: 3, pb: 2 }}>
                   <Typography variant="h5" fontWeight="bold" sx={{ mb: 1 }}>
@@ -311,7 +311,7 @@ const Dashboard: React.FC<DashboardProps> = ({ themeConfig }) => {
                   <Fade in={true} timeout={600 + index * 200}>
                     <Card
                       sx={{
-                        borderRadius: 3,
+                        borderRadius: 2,
                         cursor: "pointer",
                         transition: "all 0.3s ease",
                         border: `1px solid ${action.color}30`,
@@ -328,7 +328,7 @@ const Dashboard: React.FC<DashboardProps> = ({ themeConfig }) => {
                           sx={{
                             width: 60,
                             height: 60,
-                            borderRadius: "50%",
+                            borderRadius: 2,
                             backgroundColor: `${action.color}20`,
                             display: "flex",
                             alignItems: "center",
@@ -355,7 +355,7 @@ const Dashboard: React.FC<DashboardProps> = ({ themeConfig }) => {
 
           {/* 오른쪽: 할일 현황판 */}
           <Grid item xs={12} lg={4}>
-            <Card sx={{ height: "fit-content" }}>
+            <Card sx={{ height: "fit-content", borderRadius: 2 }}>
               <CardContent>
                 <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                   <Typography variant="h6" display="flex" alignItems="center" gap={1}>
@@ -423,7 +423,7 @@ const Dashboard: React.FC<DashboardProps> = ({ themeConfig }) => {
                     <LinearProgress
                       variant="determinate"
                       value={todos.length > 0 ? (todos.filter((t) => t.completed).length / todos.length) * 100 : 0}
-                      sx={{ height: 8, borderRadius: 4 }}
+                      sx={{ height: 8, borderRadius: 2 }}
                     />
                   </Box>
                 </Box>

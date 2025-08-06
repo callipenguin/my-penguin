@@ -221,7 +221,7 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ themeConfig }) => {
         <Grid container spacing={3}>
           {projects.length === 0 ? (
             <Grid item xs={12}>
-              <Card>
+              <Card sx={{ borderRadius: 2 }}>
                 <CardContent sx={{ textAlign: "center", py: 6 }}>
                   <Typography variant="h6" color="text.secondary" gutterBottom>
                     아직 프로젝트가 없어요! 🚀
@@ -243,7 +243,7 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ themeConfig }) => {
 
               return (
                 <Grid item xs={12} md={6} lg={4} key={project.id}>
-                  <Card sx={{ height: "100%" }}>
+                  <Card sx={{ height: "100%", borderRadius: 2 }}>
                     <CardContent>
                       {/* 프로젝트 헤더 */}
                       <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
@@ -261,6 +261,7 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ themeConfig }) => {
                                 color: epic.color,
                                 border: `1px solid ${epic.color}40`,
                                 mb: 1,
+                                borderRadius: 2,
                               }}
                             />
                           )}
@@ -291,6 +292,7 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ themeConfig }) => {
                           sx={{
                             backgroundColor: getStatusColor(project.status) + "20",
                             color: getStatusColor(project.status),
+                            borderRadius: 2,
                           }}
                         />
                         <Chip
@@ -313,6 +315,7 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ themeConfig }) => {
                               ? "primary"
                               : "success"
                           }
+                          sx={{ borderRadius: 2 }}
                         />
                       </Box>
 
@@ -325,7 +328,7 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ themeConfig }) => {
                         <LinearProgress
                           variant="determinate"
                           value={project.progress}
-                          sx={{ height: 8, borderRadius: 4 }}
+                          sx={{ height: 8, borderRadius: 2 }}
                         />
                       </Box>
 

@@ -37,6 +37,9 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ onClose }) => {
     navigate("/pomodoro");
   };
 
+  // 펼쳐진 상태에서 프로젝트/할일이 없을 때도 클릭 가능하도록
+  const shouldAllowClick = isMinimized || !selectedProject || !selectedTask;
+
   return (
     <Slide direction="up" in={shouldShow} mountOnEnter unmountOnExit>
       <Box
@@ -52,13 +55,13 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ onClose }) => {
         <Fade in={shouldShow}>
           <Card
             sx={{
-              borderRadius: isMinimized ? 2 : 3,
+              borderRadius: 2,
               boxShadow: "0 8px 32px rgba(0, 0, 0, 0.2)",
               background: isBreak
                 ? "linear-gradient(135deg, #4CAF50 0%, #81C784 100%)"
                 : "linear-gradient(135deg, #FF6B6B 0%, #FF8E8E 100%)",
               color: "white",
-              cursor: isMinimized ? "pointer" : "default",
+              cursor: shouldAllowClick ? "pointer" : "default",
               transition: "all 0.3s ease",
               border: "2px solid rgba(255, 255, 255, 0.3)",
               "&:hover": {
@@ -67,7 +70,7 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ onClose }) => {
                 border: "2px solid rgba(255, 255, 255, 0.5)",
               },
             }}
-            onClick={isMinimized ? handleWidgetClick : undefined}
+            onClick={shouldAllowClick ? handleWidgetClick : undefined}
           >
             <Box sx={{ p: isMinimized ? 1 : 2 }}>
               {/* 헤더 */}
@@ -173,12 +176,12 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ onClose }) => {
                     value={progress}
                     sx={{
                       height: 8,
-                      borderRadius: 4,
+                      borderRadius: 2,
                       mb: 2,
                       backgroundColor: "rgba(0, 0, 0, 0.3)",
                       border: "1px solid rgba(255, 255, 255, 0.2)",
                       "& .MuiLinearProgress-bar": {
-                        borderRadius: 4,
+                        borderRadius: 2,
                         backgroundColor: "rgba(255, 255, 255, 0.9)",
                         boxShadow: "0 0 10px rgba(255, 255, 255, 0.5)",
                       },
