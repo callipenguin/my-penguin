@@ -189,24 +189,49 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
       const savedEpics = localStorage.getItem(STORAGE_KEYS.epics);
       const savedProjects = localStorage.getItem(STORAGE_KEYS.projects);
 
+      // Todos 로드 - 기존 데이터가 있으면 보존, 없으면 샘플 데이터
       if (savedTodos) {
-        setTodos(JSON.parse(savedTodos));
+        const parsedTodos = JSON.parse(savedTodos);
+        if (Array.isArray(parsedTodos) && parsedTodos.length > 0) {
+          setTodos(parsedTodos);
+        } else {
+          // 빈 배열이거나 유효하지 않은 데이터면 샘플 데이터 사용
+          const sampleTodos = createSampleTodos();
+          setTodos(sampleTodos);
+          localStorage.setItem(STORAGE_KEYS.todos, JSON.stringify(sampleTodos));
+        }
       } else {
         const sampleTodos = createSampleTodos();
         setTodos(sampleTodos);
         localStorage.setItem(STORAGE_KEYS.todos, JSON.stringify(sampleTodos));
       }
 
+      // Epics 로드 - 기존 데이터가 있으면 보존, 없으면 샘플 데이터
       if (savedEpics) {
-        setEpics(JSON.parse(savedEpics));
+        const parsedEpics = JSON.parse(savedEpics);
+        if (Array.isArray(parsedEpics) && parsedEpics.length > 0) {
+          setEpics(parsedEpics);
+        } else {
+          const sampleEpics = createSampleEpics();
+          setEpics(sampleEpics);
+          localStorage.setItem(STORAGE_KEYS.epics, JSON.stringify(sampleEpics));
+        }
       } else {
         const sampleEpics = createSampleEpics();
         setEpics(sampleEpics);
         localStorage.setItem(STORAGE_KEYS.epics, JSON.stringify(sampleEpics));
       }
 
+      // Projects 로드 - 기존 데이터가 있으면 보존, 없으면 샘플 데이터
       if (savedProjects) {
-        setProjects(JSON.parse(savedProjects));
+        const parsedProjects = JSON.parse(savedProjects);
+        if (Array.isArray(parsedProjects) && parsedProjects.length > 0) {
+          setProjects(parsedProjects);
+        } else {
+          const sampleProjects = createSampleProjects();
+          setProjects(sampleProjects);
+          localStorage.setItem(STORAGE_KEYS.projects, JSON.stringify(sampleProjects));
+        }
       } else {
         const sampleProjects = createSampleProjects();
         setProjects(sampleProjects);
@@ -214,7 +239,7 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
       }
     } catch (error) {
       console.error("데이터 로드 실패:", error);
-      // 오류 시 샘플 데이터 사용
+      // 오류 시에만 샘플 데이터 사용
       setTodos(createSampleTodos());
       setEpics(createSampleEpics());
       setProjects(createSampleProjects());

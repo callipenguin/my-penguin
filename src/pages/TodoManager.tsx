@@ -13,8 +13,27 @@ import {
   CardContent,
   LinearProgress,
   Chip,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon,
+  Checkbox,
+  IconButton,
+  Divider,
 } from "@mui/material";
-import { Assessment as OverviewIcon, Assignment as TodoIcon, AccountTree as EpicIcon } from "@mui/icons-material";
+import {
+  Assessment as OverviewIcon,
+  Assignment as TodoIcon,
+  AccountTree as EpicIcon,
+  Folder as ProjectIcon,
+  ExpandMore,
+  Add,
+  Edit,
+  Delete,
+} from "@mui/icons-material";
 import { Todo, Epic, Project, TodoStats, EpicStats } from "../types";
 import { TodoList } from "../components/TodoList";
 import { EpicList } from "../components/EpicList";
@@ -37,6 +56,9 @@ const TodoManager: React.FC = () => {
     updateEpic,
     deleteEpic,
     addProject,
+    getTodosByProjectId,
+    getEpicById,
+    getProjectsByEpicId,
   } = useTodo();
 
   // 통계 계산
@@ -99,8 +121,45 @@ const TodoManager: React.FC = () => {
       completedProjects,
       totalTodos,
       completedTodos,
+      completionRate: totalTodos > 0 ? Math.round((completedTodos / totalTodos) * 100) : 0,
     };
   }, [epics, projects, todos]);
+
+  // 프로젝트별 할일 그룹화
+  const projectGroups = useMemo(() => {
+    const groups: Array<{
+      type: "project" | "unassigned";
+      project: Project | null;
+      todos: Todo[];
+      epic: Epic | null;
+    }> = [];
+
+    // 프로젝트가 있는 할일들
+    projects.forEach((project) => {
+      const projectTodos = getTodosByProjectId(project.id);
+      if (projectTodos.length > 0) {
+        groups.push({
+          type: "project",
+          project,
+          todos: projectTodos,
+          epic: getEpicById(project.epicId || "") || null,
+        });
+      }
+    });
+
+    // 프로젝트가 없는 할일들
+    const unassignedTodos = todos.filter((todo) => !todo.projectId);
+    if (unassignedTodos.length > 0) {
+      groups.push({
+        type: "unassigned",
+        project: null,
+        todos: unassignedTodos,
+        epic: null,
+      });
+    }
+
+    return groups;
+  }, [projects, todos, getTodosByProjectId, getEpicById]);
 
   // 할일 관리 함수들
   const handleAddTodo = (todoData: Omit<Todo, "id" | "createdAt" | "updatedAt">) => {
@@ -134,23 +193,21 @@ const TodoManager: React.FC = () => {
 
   // 프로젝트 추가 함수 - 이제 제대로 구현!
   const handleAddProject = (epicId: string) => {
-    const epic = epics.find((e) => e.id === epicId);
-    if (!epic) return;
-
-    // 기본 프로젝트 데이터로 새 프로젝트 생성
-    const projectData = {
-      title: `${epic.title}의 새 프로젝트`,
-      description: `${epic.title} 에픽의 새로운 프로젝트입니다.`,
-      status: "planning" as const,
-      priority: epic.priority,
-      startDate: dayjs().toISOString(),
-      dueDate: epic.dueDate || dayjs().add(1, "month").toISOString(),
-      progress: 0,
-      tags: epic.tags || [],
-      epicId,
-    };
-
-    addProject(projectData, epicId);
+    const title = prompt("프로젝트 제목을 입력하세요:");
+    if (title && title.trim()) {
+      addProject(
+        {
+          title: title.trim(),
+          description: "",
+          status: "active",
+          priority: "medium",
+          startDate: dayjs().toISOString(),
+          progress: 0,
+          tags: [],
+        },
+        epicId
+      );
+    }
   };
 
   // 개요 탭 렌더링
@@ -361,6 +418,145 @@ const TodoManager: React.FC = () => {
     </Box>
   );
 
+  // 프로젝트별 할일 렌더링
+  const renderProjectTodos = () => (
+    <Box>
+      <Typography variant="h6" gutterBottom sx={{ mb: 3 }}>
+        📁 프로젝트별 할일 관리
+      </Typography>
+
+      {projectGroups.length === 0 ? (
+        <Card sx={{ borderRadius: 2 }}>
+          <CardContent sx={{ textAlign: "center", py: 6 }}>
+            <Typography variant="h6" color="text.secondary" gutterBottom>
+              아직 할일이 없어요! 📝
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              새로운 할일을 추가해서 프로젝트별로 관리해보세요!
+            </Typography>
+          </CardContent>
+        </Card>
+      ) : (
+        projectGroups.map((group, index) => (
+          <Accordion key={index} sx={{ mb: 2, borderRadius: 2 }}>
+            <AccordionSummary expandIcon={<ExpandMore />}>
+              <Box display="flex" alignItems="center" gap={2} width="100%">
+                {group.type === "project" && group.project ? (
+                  <>
+                    <ProjectIcon color="primary" />
+                    <Box flex={1}>
+                      <Typography variant="h6">{group.project.title}</Typography>
+                      {group.epic && (
+                        <Chip
+                          size="small"
+                          label={`${group.epic.emoji} ${group.epic.title}`}
+                          sx={{
+                            fontSize: "0.7rem",
+                            backgroundColor: group.epic.color + "20",
+                            color: group.epic.color,
+                            border: `1px solid ${group.epic.color}40`,
+                            mt: 0.5,
+                            borderRadius: 2,
+                          }}
+                        />
+                      )}
+                    </Box>
+                  </>
+                ) : (
+                  <>
+                    <TodoIcon color="secondary" />
+                    <Typography variant="h6" flex={1}>
+                      미분류 할일
+                    </Typography>
+                  </>
+                )}
+                <Chip
+                  size="small"
+                  label={`${group.todos.filter((t) => t.completed).length}/${group.todos.length}`}
+                  color="primary"
+                  sx={{ borderRadius: 2 }}
+                />
+              </Box>
+            </AccordionSummary>
+            <AccordionDetails>
+              <List dense>
+                {group.todos.map((todo) => (
+                  <ListItem key={todo.id} sx={{ px: 0 }}>
+                    <ListItemIcon sx={{ minWidth: 32 }}>
+                      <Checkbox size="small" checked={todo.completed} onChange={() => toggleTodoComplete(todo.id)} />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            textDecoration: todo.completed ? "line-through" : "none",
+                            opacity: todo.completed ? 0.7 : 1,
+                          }}
+                        >
+                          {todo.title}
+                        </Typography>
+                      }
+                      secondary={
+                        <Box display="flex" alignItems="center" gap={1} mt={0.5}>
+                          <Chip
+                            size="small"
+                            label={
+                              todo.priority === "urgent"
+                                ? "긴급"
+                                : todo.priority === "high"
+                                ? "높음"
+                                : todo.priority === "medium"
+                                ? "보통"
+                                : "낮음"
+                            }
+                            color={
+                              todo.priority === "urgent"
+                                ? "error"
+                                : todo.priority === "high"
+                                ? "warning"
+                                : todo.priority === "medium"
+                                ? "primary"
+                                : "success"
+                            }
+                            sx={{ fontSize: "0.7rem", height: "18px", borderRadius: 2 }}
+                          />
+                          {todo.dueDate && (
+                            <Typography variant="caption" color="text.secondary">
+                              {dayjs(todo.dueDate).format("MM/DD")}
+                            </Typography>
+                          )}
+                        </Box>
+                      }
+                    />
+                    <Box display="flex" gap={0.5}>
+                      <Tooltip title="수정">
+                        <IconButton
+                          size="small"
+                          onClick={() => {
+                            // TODO: 할일 수정 다이얼로그 열기
+                            console.log("Edit todo:", todo.id);
+                          }}
+                        >
+                          <Edit fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="삭제">
+                        <IconButton size="small" color="error" onClick={() => deleteTodo(todo.id)}>
+                          <Delete fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                  </ListItem>
+                ))}
+              </List>
+            </AccordionDetails>
+          </Accordion>
+        ))
+      )}
+    </Box>
+  );
+
   return (
     <Container maxWidth="xl">
       <Box py={3}>
@@ -389,6 +585,7 @@ const TodoManager: React.FC = () => {
             <Tab icon={<OverviewIcon />} label="개요" iconPosition="start" />
             <Tab icon={<TodoIcon />} label={`할일 (${todoStats.totalTodos})`} iconPosition="start" />
             <Tab icon={<EpicIcon />} label={`에픽 (${epicStats.totalEpics})`} iconPosition="start" />
+            <Tab icon={<ProjectIcon />} label={`프로젝트 (${projects.length})`} iconPosition="start" />
           </Tabs>
         </Paper>
 
@@ -415,6 +612,7 @@ const TodoManager: React.FC = () => {
               onAddProject={handleAddProject}
             />
           )}
+          {activeTab === 3 && renderProjectTodos()}
         </Box>
       </Box>
     </Container>
