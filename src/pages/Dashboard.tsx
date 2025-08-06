@@ -46,6 +46,7 @@ import {
   Restore,
   GetApp,
   TableChart,
+  Backup,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { Project, Todo, Priority } from "../types";
@@ -58,7 +59,9 @@ import CatScene from "../components/CatScene";
 import { ThemeConfigExtended } from "../types";
 import { useTodo } from "../contexts/TodoContext";
 import DataRecoveryDialog from "../components/DataRecoveryDialog";
+import DataLossNotice from "../components/DataLossNotice";
 import { exportToExcel, exportToJSON } from "../utils/dataExport";
+import { restoreRealUserData, generateUserDataJSON } from "../utils/userDataRecovery";
 
 // 심플한 Todo 타입
 interface SimpleTodo {
@@ -98,6 +101,9 @@ const Dashboard: React.FC<DashboardProps> = ({ themeConfig }) => {
   // 데이터 복구 다이얼로그 상태
   const [dataRecoveryOpen, setDataRecoveryOpen] = useState(false);
 
+  // 데이터 손실 공지 상태
+  const [dataLossNoticeOpen, setDataLossNoticeOpen] = useState(false);
+
   // TodoContext 사용
   const {
     todos,
@@ -126,6 +132,43 @@ const Dashboard: React.FC<DashboardProps> = ({ themeConfig }) => {
   useEffect(() => {
     setProjects(contextProjects);
   }, [contextProjects]);
+
+  // 데이터 손실 감지 및 공지 표시
+  useEffect(() => {
+    // 샘플 데이터 감지 로직
+    const hasSampleData = todos.some(
+      (todo) =>
+        todo.title.includes("테스트") || todo.title.includes("기능 테스트") || todo.title.includes("만들기 기능")
+    );
+
+    const hasAcknowledged = localStorage.getItem("dataLossNoticeAcknowledged");
+
+    // 샘플 데이터가 있고 아직 공지를 확인하지 않았으면 공지 표시
+    if (hasSampleData && hasAcknowledged !== "true") {
+      setTimeout(() => setDataLossNoticeOpen(true), 1000); // 1초 후 표시
+    }
+  }, [todos]);
+
+  // 사용자 실제 데이터 복구 함수
+  const handleRestoreUserData = () => {
+    const restored = restoreRealUserData();
+    if (restored) {
+      alert("실제 데이터가 복구되었습니다! 페이지를 새로고침합니다.");
+      window.location.reload();
+    } else {
+      alert("데이터 복구에 실패했습니다.");
+    }
+  };
+
+  // 사용자 데이터 JSON 생성
+  const handleGenerateUserJSON = () => {
+    try {
+      generateUserDataJSON();
+      alert("사용자 데이터 JSON 파일이 다운로드되었습니다!");
+    } catch (error) {
+      alert("JSON 생성에 실패했습니다.");
+    }
+  };
 
   const getGreeting = () => {
     const hour = currentTime.hour();
@@ -312,6 +355,18 @@ const Dashboard: React.FC<DashboardProps> = ({ themeConfig }) => {
               </Typography>
             </Box>
             <Box display="flex" alignItems="center" gap={1}>
+              <Tooltip title="내 데이터 복구">
+                <IconButton
+                  color="error"
+                  onClick={handleRestoreUserData}
+                  sx={{
+                    backgroundColor: theme.palette.error.main + "20",
+                    "&:hover": { backgroundColor: theme.palette.error.main + "30" },
+                  }}
+                >
+                  <Backup />
+                </IconButton>
+              </Tooltip>
               <Tooltip title="엑셀 내보내기">
                 <IconButton
                   color="success"
@@ -765,6 +820,16 @@ const Dashboard: React.FC<DashboardProps> = ({ themeConfig }) => {
         onDataRecovered={() => {
           // 페이지 새로고침으로 데이터 다시 로드
           window.location.reload();
+        }}
+      />
+
+      {/* 데이터 손실 공지 */}
+      <DataLossNotice
+        open={dataLossNoticeOpen}
+        onClose={() => setDataLossNoticeOpen(false)}
+        onOpenDataRecovery={() => {
+          setDataLossNoticeOpen(false);
+          setDataRecoveryOpen(true);
         }}
       />
     </Box>

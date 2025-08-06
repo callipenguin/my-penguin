@@ -37,6 +37,7 @@ import {
 } from "@mui/icons-material";
 import { getCurrentData, backupData, restoreData, clearAllData, recoverUserData } from "../utils/dataRecovery";
 import { exportToExcel, exportToJSON, importFromExcel, importFromJSON } from "../utils/dataExport";
+import { restoreRealUserData, generateUserDataJSON } from "../utils/userDataRecovery";
 import { useTodo } from "../contexts/TodoContext";
 
 interface DataRecoveryDialogProps {
@@ -116,6 +117,37 @@ const DataRecoveryDialog: React.FC<DataRecoveryDialogProps> = ({ open, onClose, 
       onDataRecovered();
     } catch (error) {
       setMessage("스마트 복구 중 오류가 발생했습니다.");
+      setMessageType("error");
+    }
+  };
+
+  // 사용자 실제 데이터 복구
+  const handleRestoreRealUserData = () => {
+    try {
+      const restored = restoreRealUserData();
+      if (restored) {
+        setMessage(`실제 데이터 복구 완료! (지급결의사이트 리뉴얼 프로젝트 포함)`);
+        setMessageType("success");
+        loadCurrentData();
+        onDataRecovered();
+      } else {
+        setMessage("실제 데이터 복구에 실패했습니다.");
+        setMessageType("error");
+      }
+    } catch (error) {
+      setMessage("실제 데이터 복구 중 오류가 발생했습니다.");
+      setMessageType("error");
+    }
+  };
+
+  // 사용자 데이터 JSON 생성
+  const handleGenerateUserJSON = () => {
+    try {
+      generateUserDataJSON();
+      setMessage("사용자 데이터 JSON 파일 생성 완료!");
+      setMessageType("success");
+    } catch (error) {
+      setMessage("사용자 데이터 JSON 생성에 실패했습니다.");
       setMessageType("error");
     }
   };
@@ -316,6 +348,38 @@ const DataRecoveryDialog: React.FC<DataRecoveryDialogProps> = ({ open, onClose, 
         {/* 복구 탭 */}
         {activeTab === 0 && (
           <Box>
+            {/* 사용자 실제 데이터 복구 */}
+            <Card sx={{ mb: 3, border: "2px solid", borderColor: "error.main" }}>
+              <CardContent>
+                <Typography variant="h6" gutterBottom color="error">
+                  🆘 실제 데이터 복구 (긴급)
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  시스템 업데이트로 인해 손실된 '지급결의사이트 리뉴얼' 프로젝트를 포함한 실제 데이터를 복구합니다.
+                </Typography>
+                <Button
+                  variant="contained"
+                  color="error"
+                  onClick={handleRestoreRealUserData}
+                  startIcon={<Backup />}
+                  fullWidth
+                  sx={{ mb: 1 }}
+                >
+                  내 실제 데이터 복구하기
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="error"
+                  onClick={handleGenerateUserJSON}
+                  startIcon={<GetApp />}
+                  fullWidth
+                  size="small"
+                >
+                  내 데이터 JSON으로 다운로드
+                </Button>
+              </CardContent>
+            </Card>
+
             {/* 빠른 복구 */}
             <Card sx={{ mb: 3 }}>
               <CardContent>
