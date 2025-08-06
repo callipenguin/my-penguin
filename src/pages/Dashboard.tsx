@@ -43,6 +43,7 @@ import {
   Edit as EditIcon,
   Visibility,
   VisibilityOff,
+  Restore,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { Project, Todo, Priority } from "../types";
@@ -54,6 +55,7 @@ import SheepScene from "../components/SheepScene";
 import CatScene from "../components/CatScene";
 import { ThemeConfigExtended } from "../types";
 import { useTodo } from "../contexts/TodoContext";
+import DataRecoveryDialog from "../components/DataRecoveryDialog";
 
 // 심플한 Todo 타입
 interface SimpleTodo {
@@ -89,6 +91,9 @@ const Dashboard: React.FC<DashboardProps> = ({ themeConfig }) => {
   const [editTodoDescription, setEditTodoDescription] = useState("");
   const [editTodoPriority, setEditTodoPriority] = useState<Priority>("medium");
   const [editTodoDueDate, setEditTodoDueDate] = useState("");
+
+  // 데이터 복구 다이얼로그 상태
+  const [dataRecoveryOpen, setDataRecoveryOpen] = useState(false);
 
   // TodoContext 사용
   const {
@@ -272,15 +277,31 @@ const Dashboard: React.FC<DashboardProps> = ({ themeConfig }) => {
       <Box sx={{ p: 3, maxWidth: "1400px", margin: "0 auto" }}>
         {/* 헤더 */}
         <Box mb={4}>
-          <Typography variant="h3" component="h1" gutterBottom fontWeight="bold">
-            {getGreeting()}
-          </Typography>
-          <Typography variant="h6" color="text.secondary">
-            {themeConfig?.concepts.welcome || "오늘도 함께 성장해봐요!"} {themeConfig?.emoji || "🐧"}
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            {currentTime.format("YYYY년 MM월 DD일 dddd HH:mm")}
-          </Typography>
+          <Box display="flex" justifyContent="space-between" alignItems="flex-start">
+            <Box>
+              <Typography variant="h3" component="h1" gutterBottom fontWeight="bold">
+                {getGreeting()}
+              </Typography>
+              <Typography variant="h6" color="text.secondary">
+                {themeConfig?.concepts.welcome || "오늘도 함께 성장해봐요!"} {themeConfig?.emoji || "🐧"}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                {currentTime.format("YYYY년 MM월 DD일 dddd HH:mm")}
+              </Typography>
+            </Box>
+            <Tooltip title="데이터 복구">
+              <IconButton
+                color="primary"
+                onClick={() => setDataRecoveryOpen(true)}
+                sx={{
+                  backgroundColor: theme.palette.primary.main + "20",
+                  "&:hover": { backgroundColor: theme.palette.primary.main + "30" },
+                }}
+              >
+                <Restore />
+              </IconButton>
+            </Tooltip>
+          </Box>
         </Box>
 
         <Grid container spacing={3}>
@@ -688,6 +709,16 @@ const Dashboard: React.FC<DashboardProps> = ({ themeConfig }) => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* 데이터 복구 다이얼로그 */}
+      <DataRecoveryDialog
+        open={dataRecoveryOpen}
+        onClose={() => setDataRecoveryOpen(false)}
+        onDataRecovered={() => {
+          // 페이지 새로고침으로 데이터 다시 로드
+          window.location.reload();
+        }}
+      />
     </Box>
   );
 };

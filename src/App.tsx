@@ -34,6 +34,7 @@ import { ThemeSettings, ThemeType, ColorMode, ThemeConfigExtended } from "./type
 // Context
 import { PomodoroProvider } from "./contexts/PomodoroContext";
 import { TodoProvider } from "./contexts/TodoContext";
+import "./utils/dataRecovery"; // 데이터 복구 유틸리티 로드
 
 // 테마 생성 함수
 const createAppTheme = (themeSettings: ThemeSettings) => {
