@@ -16,9 +16,28 @@ import {
   AccordionSummary,
   AccordionDetails,
   Chip,
+  Switch,
+  FormControlLabel,
+  Tabs,
+  Tab,
+  Paper,
 } from "@mui/material";
-import { ExpandMore, Restore, Backup, Delete, Info } from "@mui/icons-material";
+import {
+  ExpandMore,
+  Restore,
+  Backup,
+  Delete,
+  Info,
+  GetApp,
+  Publish,
+  TableChart,
+  DataObject,
+  Add,
+  MergeType,
+} from "@mui/icons-material";
 import { getCurrentData, backupData, restoreData, clearAllData, recoverUserData } from "../utils/dataRecovery";
+import { exportToExcel, exportToJSON, importFromExcel, importFromJSON } from "../utils/dataExport";
+import { useTodo } from "../contexts/TodoContext";
 
 interface DataRecoveryDialogProps {
   open: boolean;
@@ -31,6 +50,11 @@ const DataRecoveryDialog: React.FC<DataRecoveryDialogProps> = ({ open, onClose, 
   const [backupExists, setBackupExists] = useState(false);
   const [message, setMessage] = useState<string>("");
   const [messageType, setMessageType] = useState<"success" | "error" | "info">("info");
+  const [activeTab, setActiveTab] = useState(0);
+  const [mergeMode, setMergeMode] = useState(false); // 데이터 추가 모드
+
+  // TodoContext 사용
+  const { todos, epics, projects, addTodo, addEpic, addProject } = useTodo();
 
   useEffect(() => {
     if (open) {
@@ -111,41 +135,143 @@ const DataRecoveryDialog: React.FC<DataRecoveryDialogProps> = ({ open, onClose, 
     }
   };
 
-  const exportData = () => {
-    const data = getCurrentData();
-    const dataStr = JSON.stringify(data, null, 2);
-    const dataBlob = new Blob([dataStr], { type: "application/json" });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `penguin-data-${new Date().toISOString().split("T")[0]}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
-    setMessage("데이터 내보내기 완료!");
-    setMessageType("success");
+  // 엑셀 내보내기
+  const handleExportExcel = () => {
+    try {
+      const fileName = exportToExcel(todos, epics, projects);
+      setMessage(`엑셀 파일 내보내기 완료! (${fileName})`);
+      setMessageType("success");
+    } catch (error) {
+      setMessage("엑셀 내보내기 중 오류가 발생했습니다.");
+      setMessageType("error");
+    }
   };
 
-  const importData = (event: React.ChangeEvent<HTMLInputElement>) => {
+  // JSON 내보내기 (개선된 버전)
+  const handleExportJSON = () => {
+    try {
+      const data = exportToJSON(todos, epics, projects);
+      setMessage(`JSON 파일 내보내기 완료! (통계 포함)`);
+      setMessageType("success");
+    } catch (error) {
+      setMessage("JSON 내보내기 중 오류가 발생했습니다.");
+      setMessageType("error");
+    }
+  };
+
+  // 엑셀 가져오기
+  const handleImportExcel = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const data = JSON.parse(e.target?.result as string);
-          localStorage.setItem("todos", JSON.stringify(data.todos || []));
-          localStorage.setItem("epics", JSON.stringify(data.epics || []));
-          localStorage.setItem("projects", JSON.stringify(data.projects || []));
-          setMessage("데이터 가져오기 완료!");
-          setMessageType("success");
-          loadCurrentData();
-          onDataRecovered();
-        } catch (error) {
-          setMessage("파일 형식이 올바르지 않습니다.");
-          setMessageType("error");
+      try {
+        const importedData = await importFromExcel(file);
+
+        if (mergeMode) {
+          // 데이터 추가 모드
+          let addedCount = { todos: 0, epics: 0, projects: 0 };
+
+          // 기존 데이터와 중복 확인하여 추가
+          importedData.epics.forEach((epic) => {
+            if (!epics.find((e) => e.id === epic.id)) {
+              addEpic(epic);
+              addedCount.epics++;
+            }
+          });
+
+          importedData.projects.forEach((project) => {
+            if (!projects.find((p) => p.id === project.id)) {
+              addProject(project);
+              addedCount.projects++;
+            }
+          });
+
+          importedData.todos.forEach((todo) => {
+            if (!todos.find((t) => t.id === todo.id)) {
+              addTodo(todo);
+              addedCount.todos++;
+            }
+          });
+
+          setMessage(
+            `엑셀 데이터 추가 완료! (${addedCount.todos}개 할일, ${addedCount.epics}개 에픽, ${addedCount.projects}개 프로젝트 추가)`
+          );
+        } else {
+          // 데이터 교체 모드
+          localStorage.setItem("todos", JSON.stringify(importedData.todos));
+          localStorage.setItem("epics", JSON.stringify(importedData.epics));
+          localStorage.setItem("projects", JSON.stringify(importedData.projects));
+          setMessage(
+            `엑셀 데이터 가져오기 완료! (${importedData.todos.length}개 할일, ${importedData.epics.length}개 에픽, ${importedData.projects.length}개 프로젝트)`
+          );
         }
-      };
-      reader.readAsText(file);
+
+        setMessageType("success");
+        loadCurrentData();
+        onDataRecovered();
+      } catch (error) {
+        setMessage(`엑셀 가져오기 실패: ${error}`);
+        setMessageType("error");
+      }
     }
+    // 파일 input 초기화
+    event.target.value = "";
+  };
+
+  // JSON 가져오기
+  const handleImportJSON = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      try {
+        const importedData = await importFromJSON(file);
+
+        if (mergeMode) {
+          // 데이터 추가 모드
+          let addedCount = { todos: 0, epics: 0, projects: 0 };
+
+          importedData.epics.forEach((epic) => {
+            if (!epics.find((e) => e.id === epic.id)) {
+              addEpic(epic);
+              addedCount.epics++;
+            }
+          });
+
+          importedData.projects.forEach((project) => {
+            if (!projects.find((p) => p.id === project.id)) {
+              addProject(project);
+              addedCount.projects++;
+            }
+          });
+
+          importedData.todos.forEach((todo) => {
+            if (!todos.find((t) => t.id === todo.id)) {
+              addTodo(todo);
+              addedCount.todos++;
+            }
+          });
+
+          setMessage(
+            `JSON 데이터 추가 완료! (${addedCount.todos}개 할일, ${addedCount.epics}개 에픽, ${addedCount.projects}개 프로젝트 추가)`
+          );
+        } else {
+          // 데이터 교체 모드
+          localStorage.setItem("todos", JSON.stringify(importedData.todos));
+          localStorage.setItem("epics", JSON.stringify(importedData.epics));
+          localStorage.setItem("projects", JSON.stringify(importedData.projects));
+          setMessage(
+            `JSON 데이터 가져오기 완료! (${importedData.todos.length}개 할일, ${importedData.epics.length}개 에픽, ${importedData.projects.length}개 프로젝트)`
+          );
+        }
+
+        setMessageType("success");
+        loadCurrentData();
+        onDataRecovered();
+      } catch (error) {
+        setMessage(`JSON 가져오기 실패: ${error}`);
+        setMessageType("error");
+      }
+    }
+    // 파일 input 초기화
+    event.target.value = "";
   };
 
   return (
@@ -153,7 +279,7 @@ const DataRecoveryDialog: React.FC<DataRecoveryDialogProps> = ({ open, onClose, 
       <DialogTitle>
         <Box display="flex" alignItems="center" gap={1}>
           <Restore color="primary" />
-          데이터 복구 센터 🛠️
+          데이터 관리 센터 🛠️
         </Box>
       </DialogTitle>
 
@@ -170,7 +296,7 @@ const DataRecoveryDialog: React.FC<DataRecoveryDialogProps> = ({ open, onClose, 
             <Typography variant="h6" gutterBottom>
               📊 현재 데이터 상태
             </Typography>
-            <Box display="flex" gap={2}>
+            <Box display="flex" gap={2} flexWrap="wrap">
               <Chip label={`할일: ${currentData?.todos?.length || 0}개`} color="primary" />
               <Chip label={`에픽: ${currentData?.epics?.length || 0}개`} color="secondary" />
               <Chip label={`프로젝트: ${currentData?.projects?.length || 0}개`} color="info" />
@@ -178,77 +304,218 @@ const DataRecoveryDialog: React.FC<DataRecoveryDialogProps> = ({ open, onClose, 
           </CardContent>
         </Card>
 
-        {/* 빠른 복구 */}
-        <Card sx={{ mb: 3 }}>
-          <CardContent>
-            <Typography variant="h6" gutterBottom color="primary">
-              🚀 빠른 복구 (추천)
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              데이터가 사라졌거나 샘플 데이터로 덮어써진 경우, 기본 사용자 데이터로 복구합니다.
-            </Typography>
-            <Button variant="contained" color="primary" onClick={handleSmartRecover} startIcon={<Restore />} fullWidth>
-              스마트 복구 실행
-            </Button>
-          </CardContent>
-        </Card>
+        {/* 탭 네비게이션 */}
+        <Paper sx={{ mb: 3 }}>
+          <Tabs value={activeTab} onChange={(_, newValue) => setActiveTab(newValue)} variant="fullWidth">
+            <Tab icon={<Restore />} label="복구" iconPosition="start" />
+            <Tab icon={<GetApp />} label="내보내기" iconPosition="start" />
+            <Tab icon={<Publish />} label="가져오기" iconPosition="start" />
+          </Tabs>
+        </Paper>
 
-        {/* 백업 및 복구 */}
-        <Accordion>
-          <AccordionSummary expandIcon={<ExpandMore />}>
-            <Typography variant="h6">🔄 백업 및 복구</Typography>
-          </AccordionSummary>
-          <AccordionDetails>
+        {/* 복구 탭 */}
+        {activeTab === 0 && (
+          <Box>
+            {/* 빠른 복구 */}
+            <Card sx={{ mb: 3 }}>
+              <CardContent>
+                <Typography variant="h6" gutterBottom color="primary">
+                  🚀 빠른 복구 (추천)
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  데이터가 사라졌거나 샘플 데이터로 덮어써진 경우, 기본 사용자 데이터로 복구합니다.
+                </Typography>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={handleSmartRecover}
+                  startIcon={<Restore />}
+                  fullWidth
+                >
+                  스마트 복구 실행
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* 백업 및 복구 */}
+            <Accordion>
+              <AccordionSummary expandIcon={<ExpandMore />}>
+                <Typography variant="h6">🔄 백업 및 복구</Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <Box display="flex" flexDirection="column" gap={2}>
+                  <Button variant="outlined" onClick={handleBackup} startIcon={<Backup />} fullWidth>
+                    현재 데이터 백업하기
+                  </Button>
+
+                  <Button
+                    variant="outlined"
+                    onClick={handleRestore}
+                    startIcon={<Restore />}
+                    disabled={!backupExists}
+                    fullWidth
+                  >
+                    백업에서 복구하기 {!backupExists && "(백업 없음)"}
+                  </Button>
+                </Box>
+              </AccordionDetails>
+            </Accordion>
+
+            {/* 위험한 작업 */}
+            <Accordion>
+              <AccordionSummary expandIcon={<ExpandMore />}>
+                <Typography variant="h6" color="error">
+                  ⚠️ 위험한 작업
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <Button variant="outlined" color="error" onClick={handleClear} startIcon={<Delete />} fullWidth>
+                  모든 데이터 삭제
+                </Button>
+              </AccordionDetails>
+            </Accordion>
+          </Box>
+        )}
+
+        {/* 내보내기 탭 */}
+        {activeTab === 1 && (
+          <Box>
+            <Typography variant="h6" gutterBottom sx={{ mb: 3 }}>
+              📤 데이터 내보내기
+            </Typography>
+
             <Box display="flex" flexDirection="column" gap={2}>
-              <Button variant="outlined" onClick={handleBackup} startIcon={<Backup />} fullWidth>
-                현재 데이터 백업하기
-              </Button>
+              <Card>
+                <CardContent>
+                  <Box display="flex" alignItems="center" gap={2} mb={2}>
+                    <TableChart color="success" />
+                    <Box flex={1}>
+                      <Typography variant="h6">엑셀 파일 (.xlsx)</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        할일, 에픽, 프로젝트를 각각 시트로 분리하여 엑셀 파일로 내보냅니다.
+                      </Typography>
+                    </Box>
+                  </Box>
+                  <Button
+                    variant="contained"
+                    color="success"
+                    onClick={handleExportExcel}
+                    startIcon={<TableChart />}
+                    fullWidth
+                  >
+                    엑셀 파일로 내보내기
+                  </Button>
+                </CardContent>
+              </Card>
 
-              <Button
-                variant="outlined"
-                onClick={handleRestore}
-                startIcon={<Restore />}
-                disabled={!backupExists}
-                fullWidth
-              >
-                백업에서 복구하기 {!backupExists && "(백업 없음)"}
-              </Button>
+              <Card>
+                <CardContent>
+                  <Box display="flex" alignItems="center" gap={2} mb={2}>
+                    <DataObject color="info" />
+                    <Box flex={1}>
+                      <Typography variant="h6">JSON 파일 (.json)</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        모든 데이터와 통계 정보를 포함한 JSON 파일로 내보냅니다.
+                      </Typography>
+                    </Box>
+                  </Box>
+                  <Button
+                    variant="contained"
+                    color="info"
+                    onClick={handleExportJSON}
+                    startIcon={<DataObject />}
+                    fullWidth
+                  >
+                    JSON 파일로 내보내기
+                  </Button>
+                </CardContent>
+              </Card>
             </Box>
-          </AccordionDetails>
-        </Accordion>
+          </Box>
+        )}
 
-        {/* 가져오기/내보내기 */}
-        <Accordion>
-          <AccordionSummary expandIcon={<ExpandMore />}>
-            <Typography variant="h6">📁 가져오기/내보내기</Typography>
-          </AccordionSummary>
-          <AccordionDetails>
-            <Box display="flex" flexDirection="column" gap={2}>
-              <Button variant="outlined" onClick={exportData} fullWidth>
-                데이터 내보내기 (JSON 파일)
-              </Button>
-
-              <Button variant="outlined" component="label" fullWidth>
-                데이터 가져오기
-                <input type="file" accept=".json" onChange={importData} style={{ display: "none" }} />
-              </Button>
-            </Box>
-          </AccordionDetails>
-        </Accordion>
-
-        {/* 위험한 작업 */}
-        <Accordion>
-          <AccordionSummary expandIcon={<ExpandMore />}>
-            <Typography variant="h6" color="error">
-              ⚠️ 위험한 작업
+        {/* 가져오기 탭 */}
+        {activeTab === 2 && (
+          <Box>
+            <Typography variant="h6" gutterBottom sx={{ mb: 2 }}>
+              📥 데이터 가져오기
             </Typography>
-          </AccordionSummary>
-          <AccordionDetails>
-            <Button variant="outlined" color="error" onClick={handleClear} startIcon={<Delete />} fullWidth>
-              모든 데이터 삭제
-            </Button>
-          </AccordionDetails>
-        </Accordion>
+
+            {/* 가져오기 모드 설정 */}
+            <Card sx={{ mb: 3 }}>
+              <CardContent>
+                <Typography variant="subtitle1" gutterBottom>
+                  📋 가져오기 모드 설정
+                </Typography>
+                <FormControlLabel
+                  control={
+                    <Switch checked={mergeMode} onChange={(e) => setMergeMode(e.target.checked)} color="primary" />
+                  }
+                  label={
+                    <Box>
+                      <Typography variant="body2">{mergeMode ? "🔀 추가 모드" : "🔄 교체 모드"}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {mergeMode
+                          ? "기존 데이터에 새 데이터를 추가합니다 (중복 제외)"
+                          : "기존 데이터를 완전히 교체합니다"}
+                      </Typography>
+                    </Box>
+                  }
+                />
+              </CardContent>
+            </Card>
+
+            <Box display="flex" flexDirection="column" gap={2}>
+              <Card>
+                <CardContent>
+                  <Box display="flex" alignItems="center" gap={2} mb={2}>
+                    <TableChart color="success" />
+                    <Box flex={1}>
+                      <Typography variant="h6">엑셀 파일 가져오기</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        엑셀 파일(.xlsx)에서 데이터를 가져옵니다. '할일', '에픽', '프로젝트' 시트를 인식합니다.
+                      </Typography>
+                    </Box>
+                  </Box>
+                  <Button
+                    variant="contained"
+                    color="success"
+                    component="label"
+                    startIcon={mergeMode ? <Add /> : <TableChart />}
+                    fullWidth
+                  >
+                    {mergeMode ? "엑셀 데이터 추가하기" : "엑셀 파일 가져오기"}
+                    <input type="file" accept=".xlsx,.xls" onChange={handleImportExcel} style={{ display: "none" }} />
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent>
+                  <Box display="flex" alignItems="center" gap={2} mb={2}>
+                    <DataObject color="info" />
+                    <Box flex={1}>
+                      <Typography variant="h6">JSON 파일 가져오기</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        JSON 파일(.json)에서 데이터를 가져옵니다. 내보낸 형식과 호환됩니다.
+                      </Typography>
+                    </Box>
+                  </Box>
+                  <Button
+                    variant="contained"
+                    color="info"
+                    component="label"
+                    startIcon={mergeMode ? <Add /> : <DataObject />}
+                    fullWidth
+                  >
+                    {mergeMode ? "JSON 데이터 추가하기" : "JSON 파일 가져오기"}
+                    <input type="file" accept=".json" onChange={handleImportJSON} style={{ display: "none" }} />
+                  </Button>
+                </CardContent>
+              </Card>
+            </Box>
+          </Box>
+        )}
 
         {/* 브라우저 콘솔 안내 */}
         <Alert severity="info" sx={{ mt: 2 }}>

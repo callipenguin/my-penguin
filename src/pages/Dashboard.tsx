@@ -44,6 +44,8 @@ import {
   Visibility,
   VisibilityOff,
   Restore,
+  GetApp,
+  TableChart,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { Project, Todo, Priority } from "../types";
@@ -56,6 +58,7 @@ import CatScene from "../components/CatScene";
 import { ThemeConfigExtended } from "../types";
 import { useTodo } from "../contexts/TodoContext";
 import DataRecoveryDialog from "../components/DataRecoveryDialog";
+import { exportToExcel, exportToJSON } from "../utils/dataExport";
 
 // 심플한 Todo 타입
 interface SimpleTodo {
@@ -216,6 +219,25 @@ const Dashboard: React.FC<DashboardProps> = ({ themeConfig }) => {
   // 표시할 할일들 필터링
   const displayTodos = hideCompleted ? todos.filter((todo) => !todo.completed) : todos;
 
+  // 빠른 내보내기 함수들
+  const handleQuickExportExcel = () => {
+    try {
+      const fileName = exportToExcel(todos, epics, contextProjects);
+      alert(`엑셀 파일 내보내기 완료! (${fileName})`);
+    } catch (error) {
+      alert("엑셀 내보내기 중 오류가 발생했습니다.");
+    }
+  };
+
+  const handleQuickExportJSON = () => {
+    try {
+      exportToJSON(todos, epics, contextProjects);
+      alert("JSON 파일 내보내기 완료!");
+    } catch (error) {
+      alert("JSON 내보내기 중 오류가 발생했습니다.");
+    }
+  };
+
   const activeProjects = projects.filter((p) => p.status === "active");
   const completedProjects = projects.filter((p) => p.status === "completed");
   const weatherInfo = getTemperatureMood();
@@ -289,18 +311,44 @@ const Dashboard: React.FC<DashboardProps> = ({ themeConfig }) => {
                 {currentTime.format("YYYY년 MM월 DD일 dddd HH:mm")}
               </Typography>
             </Box>
-            <Tooltip title="데이터 복구">
-              <IconButton
-                color="primary"
-                onClick={() => setDataRecoveryOpen(true)}
-                sx={{
-                  backgroundColor: theme.palette.primary.main + "20",
-                  "&:hover": { backgroundColor: theme.palette.primary.main + "30" },
-                }}
-              >
-                <Restore />
-              </IconButton>
-            </Tooltip>
+            <Box display="flex" alignItems="center" gap={1}>
+              <Tooltip title="엑셀 내보내기">
+                <IconButton
+                  color="success"
+                  onClick={handleQuickExportExcel}
+                  sx={{
+                    backgroundColor: theme.palette.success.main + "20",
+                    "&:hover": { backgroundColor: theme.palette.success.main + "30" },
+                  }}
+                >
+                  <TableChart />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="JSON 내보내기">
+                <IconButton
+                  color="info"
+                  onClick={handleQuickExportJSON}
+                  sx={{
+                    backgroundColor: theme.palette.info.main + "20",
+                    "&:hover": { backgroundColor: theme.palette.info.main + "30" },
+                  }}
+                >
+                  <GetApp />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="데이터 관리">
+                <IconButton
+                  color="primary"
+                  onClick={() => setDataRecoveryOpen(true)}
+                  sx={{
+                    backgroundColor: theme.palette.primary.main + "20",
+                    "&:hover": { backgroundColor: theme.palette.primary.main + "30" },
+                  }}
+                >
+                  <Restore />
+                </IconButton>
+              </Tooltip>
+            </Box>
           </Box>
         </Box>
 
