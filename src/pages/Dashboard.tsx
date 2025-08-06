@@ -322,8 +322,11 @@ const Dashboard: React.FC<DashboardProps> = ({ themeConfig }) => {
 
   // 테마별 Scene 컴포넌트 렌더링
   const renderScene = () => {
-    const width = isMobile ? Math.min(window.innerWidth - 32, 800) : Math.min(window.innerWidth - 200, 1200);
-    const height = isMobile ? 300 : 400;
+    // 더 정교한 반응형 크기 조정
+    const containerWidth = isMobile ? window.innerWidth - 64 : window.innerWidth - 320;
+    const maxWidth = isMobile ? 500 : 700;
+    const width = Math.min(containerWidth, maxWidth);
+    const height = Math.round(width * 0.5); // 2:1 비율로 조정
 
     switch (themeConfig?.id) {
       case "desert-fox":
@@ -334,6 +337,48 @@ const Dashboard: React.FC<DashboardProps> = ({ themeConfig }) => {
         return <CatScene width={width} height={height} projects={projects} />;
       default:
         return <ModernPenguinScene width={width} height={height} projects={projects} />;
+    }
+  };
+
+  // 테마별 현황판 제목 가져오기
+  const getDashboardTitle = () => {
+    switch (themeConfig?.id) {
+      case "desert-fox":
+        return "🦊 사막 여우 현황판";
+      case "sheep":
+        return "🐑 목장일 현황판";
+      case "cat":
+        return "🐱 고양이 현황판";
+      default:
+        return "🐧 펭귄 현황판";
+    }
+  };
+
+  // 테마별 빈 상태 메시지
+  const getEmptyStateMessage = () => {
+    switch (themeConfig?.id) {
+      case "desert-fox":
+        return "사막에서 할 일이 없어요. 새로운 모험을 추가해보세요! 🌵";
+      case "sheep":
+        return "목장일이 없어요. 새로운 할일을 추가해보세요! ✨";
+      case "cat":
+        return "고양이가 할 일이 없어요. 새로운 놀이를 추가해보세요! 🐾";
+      default:
+        return "펭귄이 할 일이 없어요. 새로운 할일을 추가해보세요! ✨";
+    }
+  };
+
+  // 테마별 완료 메시지
+  const getCompletedMessage = () => {
+    switch (themeConfig?.id) {
+      case "desert-fox":
+        return "모든 사막 모험이 완료되었어요! 🌟";
+      case "sheep":
+        return "모든 목장일이 완료되었어요! 🎉";
+      case "cat":
+        return "모든 고양이 놀이가 완료되었어요! 🎉";
+      default:
+        return "모든 할일이 완료되었어요! 🎉";
     }
   };
 
@@ -411,16 +456,28 @@ const Dashboard: React.FC<DashboardProps> = ({ themeConfig }) => {
           {/* 왼쪽: Scene */}
           <Grid item xs={12} lg={8}>
             <Card sx={{ mb: 3, borderRadius: 2, overflow: "hidden" }}>
-              <CardContent sx={{ p: 0 }}>
-                <Box sx={{ textAlign: "center", p: 3, pb: 2 }}>
-                  <Typography variant="h5" fontWeight="bold" sx={{ mb: 1 }}>
-                    {themeConfig?.concepts.liveView || "🏠 목장 라이브 뷰"}
+              <CardContent sx={{ p: 2 }}>
+                <Box sx={{ textAlign: "center", pb: 1 }}>
+                  <Typography variant="h6" fontWeight="bold" sx={{ mb: 0.5 }}>
+                    {themeConfig?.concepts.liveView || "🏠 라이브 뷰"}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {themeConfig?.concepts.liveViewDescription || "우리의 양 친구가 목초지를 걸어다니고 있어요! 🐑🌱"}
+                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: "0.875rem" }}>
+                    {themeConfig?.concepts.liveViewDescription || "우리의 친구가 활동하고 있어요! 🌱"}
                   </Typography>
                 </Box>
-                {renderScene()}
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    minHeight: `${Math.round(
+                      Math.min(isMobile ? window.innerWidth - 64 : window.innerWidth - 320, isMobile ? 500 : 700) * 0.5
+                    )}px`,
+                    overflow: "hidden",
+                  }}
+                >
+                  {renderScene()}
+                </Box>
               </CardContent>
             </Card>
 
@@ -483,7 +540,7 @@ const Dashboard: React.FC<DashboardProps> = ({ themeConfig }) => {
               <CardContent>
                 <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                   <Typography variant="h6" display="flex" alignItems="center" gap={1}>
-                    🐑 목장일 현황판
+                    {getDashboardTitle()}
                   </Typography>
                   <Box display="flex" alignItems="center" gap={1}>
                     <Tooltip title="할일 추가">
@@ -565,9 +622,7 @@ const Dashboard: React.FC<DashboardProps> = ({ themeConfig }) => {
                       <ListItemText
                         primary={
                           <Typography variant="body2" color="text.secondary" textAlign="center">
-                            {hideCompleted && todos.length > 0
-                              ? "모든 할일이 완료되었어요! 🎉"
-                              : "할일이 없어요. 새로운 할일을 추가해보세요! ✨"}
+                            {hideCompleted && todos.length > 0 ? getCompletedMessage() : getEmptyStateMessage()}
                           </Typography>
                         }
                       />
