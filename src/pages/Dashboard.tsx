@@ -82,14 +82,25 @@ const Dashboard: React.FC<DashboardProps> = ({ themeConfig }) => {
   const [newTodoPriority, setNewTodoPriority] = useState<Priority>("medium");
   const [newTodoDueDate, setNewTodoDueDate] = useState("");
 
+  // 추가 상태들
+  const [editTodoDialogOpen, setEditTodoDialogOpen] = useState(false);
+  const [editingTodo, setEditingTodo] = useState<Todo | null>(null);
+  const [editTodoTitle, setEditTodoTitle] = useState("");
+  const [editTodoDescription, setEditTodoDescription] = useState("");
+  const [editTodoPriority, setEditTodoPriority] = useState<Priority>("medium");
+  const [editTodoDueDate, setEditTodoDueDate] = useState("");
+
   // TodoContext 사용
   const {
     todos,
     epics,
     projects: contextProjects,
     addTodo,
+    updateTodo,
     deleteTodo,
     toggleTodoComplete,
+    getEpicById,
+    getProjectById,
     getProjectsByEpicId,
     getTodosByProjectId,
   } = useTodo();
@@ -163,6 +174,38 @@ const Dashboard: React.FC<DashboardProps> = ({ themeConfig }) => {
     setNewTodoPriority("medium");
     setNewTodoDueDate("");
     setAddTodoDialogOpen(false);
+  };
+
+  // 할일 수정 함수
+  const handleEditTodo = (todo: Todo) => {
+    setEditingTodo(todo);
+    setEditTodoTitle(todo.title);
+    setEditTodoDescription(todo.description || "");
+    setEditTodoPriority(todo.priority);
+    setEditTodoDueDate(todo.dueDate ? dayjs(todo.dueDate).format("YYYY-MM-DD") : "");
+    setEditTodoDialogOpen(true);
+  };
+
+  const handleUpdateTodo = () => {
+    if (!editingTodo || !editTodoTitle.trim()) return;
+
+    const updatedTodo: Todo = {
+      ...editingTodo,
+      title: editTodoTitle.trim(),
+      description: editTodoDescription.trim(),
+      priority: editTodoPriority,
+      dueDate: editTodoDueDate || undefined,
+    };
+
+    updateTodo(updatedTodo);
+
+    // 폼 초기화
+    setEditingTodo(null);
+    setEditTodoTitle("");
+    setEditTodoDescription("");
+    setEditTodoPriority("medium");
+    setEditTodoDueDate("");
+    setEditTodoDialogOpen(false);
   };
 
   // 표시할 할일들 필터링
@@ -406,64 +449,112 @@ const Dashboard: React.FC<DashboardProps> = ({ themeConfig }) => {
                       />
                     </ListItem>
                   ) : (
-                    displayTodos.slice(0, 10).map((todo) => (
-                      <ListItem key={todo.id} sx={{ px: 0 }}>
-                        <ListItemIcon sx={{ minWidth: 40 }}>
-                          <Checkbox
-                            checked={todo.completed}
-                            onChange={() => toggleTodoComplete(todo.id)}
-                            size="small"
+                    displayTodos.slice(0, 10).map((todo) => {
+                      const epic = getEpicById(todo.epicId || "");
+                      const project = getProjectById(todo.projectId || "");
+
+                      return (
+                        <ListItem key={todo.id} sx={{ px: 0, py: 1 }}>
+                          <ListItemIcon sx={{ minWidth: 40 }}>
+                            <Checkbox
+                              checked={todo.completed}
+                              onChange={() => toggleTodoComplete(todo.id)}
+                              size="small"
+                            />
+                          </ListItemIcon>
+                          <ListItemText
+                            primary={
+                              <Typography
+                                variant="body2"
+                                sx={{
+                                  textDecoration: todo.completed ? "line-through" : "none",
+                                  opacity: todo.completed ? 0.7 : 1,
+                                }}
+                              >
+                                {todo.title}
+                              </Typography>
+                            }
+                            secondary={
+                              <Box>
+                                {/* 에픽과 프로젝트 정보 */}
+                                {(epic || project) && (
+                                  <Box display="flex" alignItems="center" gap={0.5} mt={0.5}>
+                                    {epic && (
+                                      <Chip
+                                        size="small"
+                                        label={`${epic.emoji} ${epic.title.split(" ")[0]}...`}
+                                        sx={{
+                                          fontSize: "0.6rem",
+                                          height: "16px",
+                                          backgroundColor: epic.color + "20",
+                                          color: epic.color,
+                                          border: `1px solid ${epic.color}40`,
+                                        }}
+                                      />
+                                    )}
+                                    {project && (
+                                      <Chip
+                                        size="small"
+                                        label={`📋 ${project.title.split(" ")[0]}...`}
+                                        sx={{
+                                          fontSize: "0.6rem",
+                                          height: "16px",
+                                          backgroundColor: "#f5f5f5",
+                                          color: "#666",
+                                        }}
+                                      />
+                                    )}
+                                  </Box>
+                                )}
+
+                                {/* 우선순위와 마감일 */}
+                                <Box display="flex" alignItems="center" gap={1} mt={0.5}>
+                                  <Chip
+                                    size="small"
+                                    label={
+                                      todo.priority === "urgent"
+                                        ? "긴급"
+                                        : todo.priority === "high"
+                                        ? "높음"
+                                        : todo.priority === "medium"
+                                        ? "보통"
+                                        : "낮음"
+                                    }
+                                    color={
+                                      todo.priority === "urgent"
+                                        ? "error"
+                                        : todo.priority === "high"
+                                        ? "warning"
+                                        : todo.priority === "medium"
+                                        ? "primary"
+                                        : "success"
+                                    }
+                                    sx={{ fontSize: "0.7rem", height: "18px" }}
+                                  />
+                                  {todo.dueDate && (
+                                    <Typography variant="caption" color="text.secondary">
+                                      {dayjs(todo.dueDate).format("MM/DD")}
+                                    </Typography>
+                                  )}
+                                </Box>
+                              </Box>
+                            }
                           />
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={
-                            <Typography
-                              variant="body2"
-                              sx={{
-                                textDecoration: todo.completed ? "line-through" : "none",
-                                opacity: todo.completed ? 0.7 : 1,
-                              }}
-                            >
-                              {todo.title}
-                            </Typography>
-                          }
-                          secondary={
-                            <Box display="flex" alignItems="center" gap={1} mt={0.5}>
-                              <Chip
-                                size="small"
-                                label={
-                                  todo.priority === "urgent"
-                                    ? "긴급"
-                                    : todo.priority === "high"
-                                    ? "높음"
-                                    : todo.priority === "medium"
-                                    ? "보통"
-                                    : "낮음"
-                                }
-                                color={
-                                  todo.priority === "urgent"
-                                    ? "error"
-                                    : todo.priority === "high"
-                                    ? "warning"
-                                    : todo.priority === "medium"
-                                    ? "primary"
-                                    : "success"
-                                }
-                                sx={{ fontSize: "0.7rem", height: "18px" }}
-                              />
-                              {todo.dueDate && (
-                                <Typography variant="caption" color="text.secondary">
-                                  {dayjs(todo.dueDate).format("MM/DD")}
-                                </Typography>
-                              )}
-                            </Box>
-                          }
-                        />
-                        <IconButton size="small" color="error" onClick={() => deleteTodo(todo.id)} sx={{ ml: 1 }}>
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </ListItem>
-                    ))
+                          <Box display="flex" alignItems="center" gap={0.5}>
+                            <Tooltip title="수정">
+                              <IconButton size="small" color="primary" onClick={() => handleEditTodo(todo)}>
+                                <EditIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="삭제">
+                              <IconButton size="small" color="error" onClick={() => deleteTodo(todo.id)}>
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          </Box>
+                        </ListItem>
+                      );
+                    })
                   )}
                 </List>
 
@@ -535,6 +626,65 @@ const Dashboard: React.FC<DashboardProps> = ({ themeConfig }) => {
           <Button onClick={() => setAddTodoDialogOpen(false)}>취소</Button>
           <Button onClick={handleAddTodo} variant="contained" disabled={!newTodoTitle.trim()}>
             추가
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* 할일 수정 다이얼로그 */}
+      <Dialog open={editTodoDialogOpen} onClose={() => setEditTodoDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>할일 수정 ✏️</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="할일 제목"
+            fullWidth
+            variant="outlined"
+            value={editTodoTitle}
+            onChange={(e) => setEditTodoTitle(e.target.value)}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            margin="dense"
+            label="설명 (선택사항)"
+            fullWidth
+            variant="outlined"
+            multiline
+            rows={2}
+            value={editTodoDescription}
+            onChange={(e) => setEditTodoDescription(e.target.value)}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            select
+            margin="dense"
+            label="우선순위"
+            fullWidth
+            variant="outlined"
+            value={editTodoPriority}
+            onChange={(e) => setEditTodoPriority(e.target.value as Priority)}
+            sx={{ mb: 2 }}
+          >
+            <MenuItem value="low">낮음</MenuItem>
+            <MenuItem value="medium">보통</MenuItem>
+            <MenuItem value="high">높음</MenuItem>
+            <MenuItem value="urgent">긴급</MenuItem>
+          </TextField>
+          <TextField
+            type="date"
+            margin="dense"
+            label="마감일 (선택사항)"
+            fullWidth
+            variant="outlined"
+            value={editTodoDueDate}
+            onChange={(e) => setEditTodoDueDate(e.target.value)}
+            InputLabelProps={{ shrink: true }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditTodoDialogOpen(false)}>취소</Button>
+          <Button onClick={handleUpdateTodo} variant="contained" disabled={!editTodoTitle.trim()}>
+            수정
           </Button>
         </DialogActions>
       </Dialog>
