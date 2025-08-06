@@ -32,6 +32,7 @@ interface PomodoroActions {
   setTask: (task: SimpleTodo | null) => void;
   setIsBreak: (isBreak: boolean) => void;
   completeSession: () => void;
+  saveCurrentSession: () => void; // 현재 세션을 중간 저장
 }
 
 // Context 타입
@@ -149,6 +150,8 @@ export const PomodoroProvider: React.FC<PomodoroProviderProps> = ({ children }) 
 
   const pauseTimer = () => {
     setIsActive(false);
+    // 일시정지시 현재까지의 세션 저장
+    saveCurrentSession();
   };
 
   const resetTimer = () => {
@@ -173,7 +176,62 @@ export const PomodoroProvider: React.FC<PomodoroProviderProps> = ({ children }) 
     setSelectedTask(task);
   };
 
+  // 현재 세션 저장 (일시정지시)
+  const saveCurrentSession = () => {
+    if (!sessionStartTime || !currentSessionId) return;
+
+    const actualDuration = Math.floor((totalTime - time) / 60); // 실제 진행된 시간 (분)
+
+    if (actualDuration < 1) return; // 1분 미만은 저장하지 않음
+
+    const sessionData = {
+      id: currentSessionId,
+      projectId: selectedProject?.id,
+      projectTitle: selectedProject?.title || "프로젝트 없음",
+      taskId: selectedTask?.id,
+      taskTitle: selectedTask?.title || "작업 없음",
+      sessionType: isBreak ? "break" : "focus",
+      duration: totalTime / 60, // 설정된 전체 시간 (분)
+      actualDuration, // 실제 진행된 시간 (분)
+      startTime: sessionStartTime,
+      endTime: new Date().toISOString(),
+      completed: false, // 중간 저장이므로 미완료
+      pausedAt: new Date().toISOString(),
+    };
+
+    // 로컬스토리지에 저장
+    const existingSessions = JSON.parse(localStorage.getItem("pomodoroSessions") || "[]");
+    const updatedSessions = [...existingSessions, sessionData];
+    localStorage.setItem("pomodoroSessions", JSON.stringify(updatedSessions));
+
+    console.log("세션 중간 저장:", sessionData);
+  };
+
   const completeSession = () => {
+    // 완료된 세션 저장
+    if (sessionStartTime && currentSessionId) {
+      const sessionData = {
+        id: currentSessionId,
+        projectId: selectedProject?.id,
+        projectTitle: selectedProject?.title || "프로젝트 없음",
+        taskId: selectedTask?.id,
+        taskTitle: selectedTask?.title || "작업 없음",
+        sessionType: isBreak ? "break" : "focus",
+        duration: totalTime / 60, // 설정된 전체 시간 (분)
+        actualDuration: totalTime / 60, // 완료된 세션은 전체 시간과 동일
+        startTime: sessionStartTime,
+        endTime: new Date().toISOString(),
+        completed: true, // 완료된 세션
+      };
+
+      // 로컬스토리지에 저장
+      const existingSessions = JSON.parse(localStorage.getItem("pomodoroSessions") || "[]");
+      const updatedSessions = [...existingSessions, sessionData];
+      localStorage.setItem("pomodoroSessions", JSON.stringify(updatedSessions));
+
+      console.log("세션 완료 저장:", sessionData);
+    }
+
     setCompletedSessions((prev) => prev + 1);
     setSessionStartTime(null);
     setCurrentSessionId(null);
@@ -216,6 +274,7 @@ export const PomodoroProvider: React.FC<PomodoroProviderProps> = ({ children }) 
     setTask,
     setIsBreak,
     completeSession,
+    saveCurrentSession,
   };
 
   return <PomodoroContext.Provider value={contextValue}>{children}</PomodoroContext.Provider>;

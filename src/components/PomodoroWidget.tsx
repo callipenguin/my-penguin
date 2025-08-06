@@ -9,13 +9,23 @@ interface PomodoroWidgetProps {
 }
 
 const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ onClose }) => {
-  const { isActive, time, totalTime, selectedProject, selectedTask, isBreak, startTimer, pauseTimer, resetTimer } =
-    usePomodoro();
+  const {
+    isActive,
+    time,
+    totalTime,
+    selectedProject,
+    selectedTask,
+    isBreak,
+    startTimer,
+    pauseTimer,
+    resetTimer,
+    sessionStartTime,
+  } = usePomodoro();
 
   const navigate = useNavigate();
 
   // 뽀모도로가 실행 중이거나 일시정지 상태일 때만 표시
-  const shouldShow = time < totalTime || isActive;
+  const shouldShow = true; // 임시로 항상 표시
 
   if (!shouldShow) return null;
 
