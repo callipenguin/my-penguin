@@ -2,9 +2,93 @@
 <html lang="ko">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" id="favicon" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>개인 비서 🤖</title>
+
+    <!-- PWA 매니페스트 -->
+    <link rel="manifest" href="/my-penguin/manifest.json" />
+    <meta name="theme-color" content="#2196F3" />
+    <meta name="description" content="ADHD 친화적인 개인 생산성 관리 앱" />
+
+    <!-- iOS PWA 지원 -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="펭귄비서" />
+    <link
+      rel="apple-touch-icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐧</text></svg>"
+    />
+
+    <!-- 테마별 favicon 동적 변경 -->
+    <script>
+      function updateFavicon() {
+        const theme = localStorage.getItem("selectedTheme") || "penguin";
+        const favicon = document.getElementById("favicon");
+        const title = document.querySelector("title");
+
+        const themeConfig = {
+          penguin: {
+            emoji: "🐧",
+            title: "펭귄 비서 🐧",
+            dataUrl:
+              'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🐧</text></svg>',
+          },
+          "desert-fox": {
+            emoji: "🦊",
+            title: "사막여우 비서 🦊",
+            dataUrl:
+              'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🦊</text></svg>',
+          },
+          sheep: {
+            emoji: "🐑",
+            title: "양 비서 🐑",
+            dataUrl:
+              'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🐑</text></svg>',
+          },
+          cat: {
+            emoji: "🐱",
+            title: "고양이 비서 🐱",
+            dataUrl:
+              'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🐱</text></svg>',
+          },
+        };
+
+        const config = themeConfig[theme] || themeConfig.penguin;
+        favicon.href = config.dataUrl;
+        title.textContent = config.title;
+      }
+
+      // 페이지 로드시 실행
+      document.addEventListener("DOMContentLoaded", updateFavicon);
+
+      // 테마 변경 감지를 위한 이벤트 리스너
+      window.addEventListener("storage", function (e) {
+        if (e.key === "selectedTheme") {
+          updateFavicon();
+        }
+      });
+
+      // 커스텀 이벤트로도 업데이트 가능하게
+      window.addEventListener("themeChanged", updateFavicon);
+    </script>
+
+    <!-- Service Worker 등록 -->
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker
+            .register("/sw.js")
+            .then((registration) => {
+              console.log("SW registered: ", registration);
+            })
+            .catch((registrationError) => {
+              console.log("SW registration failed: ", registrationError);
+            });
+        });
+      }
+    </script>
+
     <style>
       body {
         margin: 0;
@@ -19,7 +103,7 @@
         width: 100vw;
       }
     </style>
-    <script type="module" crossorigin src="/my-penguin/assets/index-b03aaf6c.js"></script>
+    <script type="module" crossorigin src="/my-penguin/assets/index-610d33eb.js"></script>
   </head>
   <body>
     <div id="root"></div>
