@@ -183,7 +183,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, themeConfig }) => {
         description: themeConfig?.concepts?.projectManage || "프로젝트 관리",
       },
       {
-        text: "할일 & 에픽",
+        text: "계획 관리",
         icon: <TodoIcon />,
         path: "/todos",
         emoji: "📝",

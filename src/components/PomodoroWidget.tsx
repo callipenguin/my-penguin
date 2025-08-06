@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Box, Card, Typography, IconButton, LinearProgress, Chip, Fade, Slide } from "@mui/material";
 import { PlayArrow, Pause, Refresh, Timer, Close, Minimize, Maximize } from "@mui/icons-material";
 import { usePomodoro, formatTime } from "../contexts/PomodoroContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 interface PomodoroWidgetProps {
   onClose?: () => void;
@@ -23,10 +23,11 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ onClose }) => {
   } = usePomodoro();
 
   const navigate = useNavigate();
+  const location = useLocation();
   const [isMinimized, setIsMinimized] = useState(false); // 작게보기 상태
 
-  // 뽀모도로가 실행 중이거나 일시정지 상태일 때만 표시
-  const shouldShow = true; // 임시로 항상 표시
+  // 집중 여행 탭에서는 위젯 숨기기
+  const shouldShow = location.pathname !== "/pomodoro";
 
   if (!shouldShow) return null;
 
