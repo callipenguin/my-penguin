@@ -79,6 +79,43 @@ export const getActiveAlerts = (): EmergencyAlert[] => {
   });
 };
 
+// 알림 히스토리 가져오기 (모든 알림을 시간순으로 정렬)
+export const getAlertHistory = (): EmergencyAlert[] => {
+  const alerts = getAllAlerts();
+  return alerts.sort((a, b) => dayjs(b.createdAt).valueOf() - dayjs(a.createdAt).valueOf());
+};
+
+// 읽지 않은 알림 가져오기
+export const getUnreadAlerts = (): EmergencyAlert[] => {
+  const alerts = getAllAlerts();
+  const now = dayjs();
+
+  return alerts.filter((alert) => {
+    // 닫힌 알림이지만 아직 읽지 않은 것들
+    if (!alert.dismissed) return true;
+
+    // 만료되지 않았고 읽지 않은 알림
+    if (alert.expiresAt && now.isAfter(dayjs(alert.expiresAt))) {
+      return false;
+    }
+
+    return true;
+  });
+};
+
+// 알림 읽음 처리 (닫기와 별개)
+export const markAlertAsRead = (alertId: string): void => {
+  const alerts = getAllAlerts();
+  const alertIndex = alerts.findIndex((alert) => alert.id === alertId);
+
+  if (alertIndex !== -1) {
+    // 읽음 상태 추가 (기존 구조 유지하면서 확장)
+    (alerts[alertIndex] as any).read = true;
+    (alerts[alertIndex] as any).readAt = dayjs().toISOString();
+    saveAlerts(alerts);
+  }
+};
+
 // 알림 닫기
 export const dismissAlert = (alertId: string): void => {
   const alerts = getAllAlerts();
@@ -146,6 +183,26 @@ export const adminAlertUtils = {
     return alerts;
   },
 
+  // 알림 히스토리 보기
+  history: () => {
+    const alerts = getAlertHistory();
+    console.table(alerts);
+    return alerts;
+  },
+
+  // 읽지 않은 알림 보기
+  unread: () => {
+    const alerts = getUnreadAlerts();
+    console.table(alerts);
+    return alerts;
+  },
+
+  // 알림 읽음 처리
+  markRead: (alertId: string) => {
+    markAlertAsRead(alertId);
+    console.log(`📖 알림 ${alertId}를 읽음으로 표시했습니다.`);
+  },
+
   // 특정 알림 닫기
   dismiss: (alertId: string) => {
     dismissAlert(alertId);
@@ -206,7 +263,10 @@ export default {
   createEmergencyAlert,
   getAllAlerts,
   getActiveAlerts,
+  getAlertHistory,
+  getUnreadAlerts,
   dismissAlert,
+  markAlertAsRead,
   clearAllAlerts,
   cleanupExpiredAlerts,
   adminAlertUtils,

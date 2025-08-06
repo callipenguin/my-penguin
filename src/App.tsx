@@ -99,14 +99,14 @@ const createAppTheme = (themeSettings: ThemeSettings) => {
       },
     },
     shape: {
-      borderRadius: 16, // 둥근 모양
+      borderRadius: 8, // 적당히 둥글게 (기존 16에서 8로)
     },
     components: {
       MuiButton: {
         styleOverrides: {
           root: {
             textTransform: "none",
-            borderRadius: 20, // 둥글게
+            borderRadius: 8, // 적당히 둥글게 (기존 20에서 8로)
             fontWeight: 600,
           },
         },
@@ -114,7 +114,7 @@ const createAppTheme = (themeSettings: ThemeSettings) => {
       MuiCard: {
         styleOverrides: {
           root: {
-            borderRadius: 20,
+            borderRadius: 8, // 적당히 둥글게 (기존 20에서 8로)
             boxShadow: actualMode === "light" ? "0 4px 20px rgba(0, 0, 0, 0.1)" : "0 4px 20px rgba(0, 0, 0, 0.3)",
           },
         },

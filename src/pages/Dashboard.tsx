@@ -47,6 +47,7 @@ import {
   GetApp,
   TableChart,
   Backup,
+  History,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { Project, Todo, Priority } from "../types";
@@ -62,6 +63,7 @@ import DataRecoveryDialog from "../components/DataRecoveryDialog";
 import DataLossNotice from "../components/DataLossNotice";
 import { exportToExcel, exportToJSON } from "../utils/dataExport";
 import { restoreRealUserData, generateUserDataJSON } from "../utils/userDataRecovery";
+import AlertHistoryDialog from "../components/AlertHistoryDialog";
 
 // 심플한 Todo 타입
 interface SimpleTodo {
@@ -103,6 +105,9 @@ const Dashboard: React.FC<DashboardProps> = ({ themeConfig }) => {
 
   // 데이터 손실 공지 상태
   const [dataLossNoticeOpen, setDataLossNoticeOpen] = useState(false);
+
+  // 알림 히스토리 상태
+  const [alertHistoryOpen, setAlertHistoryOpen] = useState(false);
 
   // TodoContext 사용
   const {
@@ -446,6 +451,18 @@ const Dashboard: React.FC<DashboardProps> = ({ themeConfig }) => {
                   }}
                 >
                   <Restore />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="알림 히스토리">
+                <IconButton
+                  color="info"
+                  onClick={() => setAlertHistoryOpen(true)}
+                  sx={{
+                    backgroundColor: theme.palette.info.main + "20",
+                    "&:hover": { backgroundColor: theme.palette.info.main + "30" },
+                  }}
+                >
+                  <History />
                 </IconButton>
               </Tooltip>
             </Box>
@@ -887,6 +904,9 @@ const Dashboard: React.FC<DashboardProps> = ({ themeConfig }) => {
           setDataRecoveryOpen(true);
         }}
       />
+
+      {/* 알림 히스토리 다이얼로그 */}
+      <AlertHistoryDialog open={alertHistoryOpen} onClose={() => setAlertHistoryOpen(false)} />
     </Box>
   );
 };
