@@ -136,7 +136,7 @@ const AlertHistoryDialog: React.FC<AlertHistoryDialogProps> = ({ open, onClose }
   // 알림 카드 렌더링
   const renderAlertCard = (alert: EmergencyAlert & { read?: boolean }) => {
     const isExpanded = expandedAlert === alert.id;
-    const isRead = alert.read || alert.dismissed;
+    const isRead = (alert as any).read || false; // dismissed와 별개로 read 상태만 확인
 
     return (
       <Card
@@ -228,7 +228,7 @@ const AlertHistoryDialog: React.FC<AlertHistoryDialogProps> = ({ open, onClose }
       <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <Box display="flex" alignItems="center" gap={1}>
           <History color="primary" />
-          <Typography variant="h6">알림 센터 📬</Typography>
+          <Typography variant="h6">알림 관리 센터 📬</Typography>
         </Box>
         <IconButton onClick={onClose} size="small">
           <Close />
@@ -236,6 +236,15 @@ const AlertHistoryDialog: React.FC<AlertHistoryDialogProps> = ({ open, onClose }
       </DialogTitle>
 
       <DialogContent sx={{ p: 0 }}>
+        {/* 탭 설명 */}
+        <Box sx={{ p: 2, backgroundColor: "grey.50", borderBottom: 1, borderColor: "divider" }}>
+          <Typography variant="body2" color="text.secondary" textAlign="center">
+            {activeTab === 0 && "🚨 현재 표시 중인 긴급 알림들"}
+            {activeTab === 1 && "📢 아직 읽음 처리하지 않은 모든 알림들"}
+            {activeTab === 2 && "📚 모든 알림의 완전한 기록 (시간순 정렬)"}
+          </Typography>
+        </Box>
+
         {/* 탭 네비게이션 */}
         <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
           <Tabs value={activeTab} onChange={(_, newValue) => setActiveTab(newValue)} variant="fullWidth">
@@ -245,7 +254,7 @@ const AlertHistoryDialog: React.FC<AlertHistoryDialogProps> = ({ open, onClose }
                   <NotificationsActive />
                 </Badge>
               }
-              label="활성 알림"
+              label="현재 활성"
               iconPosition="start"
             />
             <Tab
@@ -254,7 +263,7 @@ const AlertHistoryDialog: React.FC<AlertHistoryDialogProps> = ({ open, onClose }
                   <Notifications />
                 </Badge>
               }
-              label="읽지 않음"
+              label="미확인"
               iconPosition="start"
             />
             <Tab icon={<History />} label={`전체 (${alerts.length})`} iconPosition="start" />
@@ -266,9 +275,14 @@ const AlertHistoryDialog: React.FC<AlertHistoryDialogProps> = ({ open, onClose }
           {getCurrentAlerts().length === 0 ? (
             <Box sx={{ textAlign: "center", py: 4 }}>
               <Typography variant="body1" color="text.secondary">
-                {activeTab === 0 && "활성 알림이 없습니다 ✨"}
-                {activeTab === 1 && "모든 알림을 읽었습니다! 👏"}
+                {activeTab === 0 && "현재 활성화된 알림이 없습니다 ✨"}
+                {activeTab === 1 && "모든 알림을 확인했습니다! 👏"}
                 {activeTab === 2 && "알림 히스토리가 없습니다 📭"}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                {activeTab === 0 && "새로운 알림이 있으면 여기에 표시됩니다"}
+                {activeTab === 1 && "읽음 처리하지 않은 알림이 여기에 표시됩니다"}
+                {activeTab === 2 && "모든 알림의 기록이 여기에 저장됩니다"}
               </Typography>
             </Box>
           ) : (

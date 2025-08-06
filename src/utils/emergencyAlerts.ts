@@ -91,10 +91,10 @@ export const getUnreadAlerts = (): EmergencyAlert[] => {
   const now = dayjs();
 
   return alerts.filter((alert) => {
-    // 닫힌 알림이지만 아직 읽지 않은 것들
-    if (!alert.dismissed) return true;
+    // 읽은 알림은 제외
+    if ((alert as any).read) return false;
 
-    // 만료되지 않았고 읽지 않은 알림
+    // 만료된 알림은 제외
     if (alert.expiresAt && now.isAfter(dayjs(alert.expiresAt))) {
       return false;
     }
