@@ -448,7 +448,7 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ themeConfig }) => {
         {statusColumns.map((column, index) => {
           const count = getProjectsByStatus(column.status).length;
           return (
-            <Grid item xs={12} sm={6} md={3} key={column.status}>
+            <Grid item xs={12} sm={6} md={6} key={column.status}>
               <Fade in={true} timeout={500 + index * 200}>
                 <Card
                   sx={{
