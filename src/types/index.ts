@@ -24,6 +24,7 @@ export interface Project {
   progress: number; // 0-100
   tasks: Task[];
   tags?: string[];
+  epicId?: string; // 에픽과 연결 (선택적)
   createdAt: string;
   updatedAt: string;
 }
@@ -294,4 +295,85 @@ export interface ThemeConfig extends Partial<ThemeConfigExtended> {
     dark: ThemeColorSet;
   };
   concepts: ThemeConcepts;
+}
+
+// Epic 관리 타입 (대주제 개념)
+export interface Epic {
+  id: string;
+  title: string;
+  description: string;
+  status: EpicStatus;
+  priority: Priority;
+  startDate?: string;
+  dueDate?: string;
+  progress: number; // 0-100 (하위 프로젝트들의 평균 진행률)
+  projects: Project[]; // 이 에픽에 속한 프로젝트들
+  color: string; // 에픽 구분용 색상
+  emoji?: string; // 에픽 아이콘
+  tags?: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type EpicStatus = "planning" | "active" | "paused" | "completed" | "cancelled";
+
+// 확장된 할일 타입 (독립적인 할일 관리용)
+export interface Todo {
+  id: string;
+  title: string;
+  description?: string;
+  completed: boolean;
+  priority: Priority;
+  dueDate?: string;
+  tags?: string[];
+  epicId?: string; // 에픽과 연결 (선택적)
+  projectId?: string; // 프로젝트와 연결 (선택적)
+  createdAt: string;
+  updatedAt: string;
+  completedAt?: string;
+}
+
+// 할일 필터 타입
+export interface TodoFilter {
+  status?: "all" | "completed" | "pending";
+  priority?: Priority | "all";
+  epicId?: string | "all";
+  projectId?: string | "all";
+  tags?: string[];
+  dateRange?: {
+    start?: string;
+    end?: string;
+  };
+}
+
+// 에픽 통계 타입
+export interface EpicStats {
+  totalEpics: number;
+  activeEpics: number;
+  completedEpics: number;
+  totalProjects: number;
+  completedProjects: number;
+  totalTodos: number;
+  completedTodos: number;
+  averageEpicCompletionTime?: number; // 일 단위
+}
+
+// 할일 통계 타입
+export interface TodoStats {
+  totalTodos: number;
+  completedTodos: number;
+  completionRate: number; // 0-100
+  todayTodos: number;
+  overdueTodos: number;
+  upcomingTodos: number;
+  priorityBreakdown: {
+    urgent: number;
+    high: number;
+    medium: number;
+    low: number;
+  };
+  dailyCompletions: Array<{
+    date: string; // YYYY-MM-DD
+    completed: number;
+  }>;
 }

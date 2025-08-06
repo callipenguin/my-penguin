@@ -1,5 +1,5 @@
 import { signInWithPopup, signOut as firebaseSignOut, onAuthStateChanged, User } from "firebase/auth";
-import { doc, setDoc, getDoc, collection, getDocs, query, where } from "firebase/firestore";
+import { doc, setDoc, getDoc, collection, getDocs, query, where, deleteDoc } from "firebase/firestore";
 import { auth, googleProvider, db, AUTHORIZED_EMAILS } from "../config/firebase";
 import { PomodoroSession, WeeklyPomodoroStats } from "../types";
 
@@ -716,6 +716,48 @@ export const savePomodoroSession = async (
   }
 };
 
+// 뽀모도로 세션 업데이트
+export const updatePomodoroSession = async (
+  userId: string,
+  sessionId: string,
+  updates: Partial<PomodoroSession>
+): Promise<{ success: boolean; data?: PomodoroSession; error?: string }> => {
+  try {
+    const docRef = doc(db, `users/${userId}/pomodoro_sessions`, sessionId);
+
+    // 업데이트할 데이터에 updatedAt 필드 추가
+    const updateData = {
+      ...updates,
+      updatedAt: new Date().toISOString(),
+    };
+
+    await setDoc(docRef, updateData, { merge: true });
+
+    console.log("✅ 뽀모도로 세션 업데이트 성공:", sessionId);
+    return { success: true };
+  } catch (error) {
+    console.error("❌ 뽀모도로 세션 업데이트 실패:", error);
+    return { success: false, error: error instanceof Error ? error.message : "알 수 없는 오류" };
+  }
+};
+
+// 뽀모도로 세션 삭제
+export const deletePomodoroSession = async (
+  userId: string,
+  sessionId: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const docRef = doc(db, `users/${userId}/pomodoro_sessions`, sessionId);
+    await deleteDoc(docRef);
+
+    console.log("✅ 뽀모도로 세션 삭제 성공:", sessionId);
+    return { success: true };
+  } catch (error) {
+    console.error("❌ 뽀모도로 세션 삭제 실패:", error);
+    return { success: false, error: error instanceof Error ? error.message : "알 수 없는 오류" };
+  }
+};
+
 // 뽀모도로 세션 조회 (날짜 범위)
 export const loadPomodoroSessions = async (
   userId: string,
@@ -738,7 +780,11 @@ export const loadPomodoroSessions = async (
     const sessions: PomodoroSession[] = [];
 
     querySnapshot.forEach((doc) => {
-      sessions.push(doc.data() as PomodoroSession);
+      const sessionData = doc.data() as PomodoroSession;
+      sessions.push({
+        ...sessionData,
+        id: doc.id, // 실제 Firestore 문서 ID를 사용
+      });
     });
 
     // 시간순 정렬 (최신순)

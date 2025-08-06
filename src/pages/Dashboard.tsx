@@ -345,7 +345,7 @@ const Dashboard: React.FC<DashboardProps> = ({ themeConfig }) => {
           </Typography>
           <Grid container spacing={2}>
             {quickActions.map((action, index) => (
-              <Grid item xs={12} sm={6} md={4} key={action.title}>
+              <Grid item xs={12} sm={6} md={6} key={action.title}>
                 <Fade in={true} timeout={600 + index * 200}>
                   <Card
                     sx={{

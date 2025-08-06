@@ -15,6 +15,7 @@ import Login from "./components/Login";
 import Dashboard from "./pages/Dashboard";
 import ConditionTracker from "./pages/ConditionTracker";
 import ProjectManager from "./pages/ProjectManager";
+import TodoManager from "./pages/TodoManager";
 import Chat from "./pages/Chat";
 import Analytics from "./pages/Analytics";
 import Profile from "./pages/Profile";
@@ -254,6 +255,7 @@ function App() {
                   <Route path="/condition" element={<ConditionTracker themeConfig={themeConfig} />} />
                   <Route path="/analytics" element={<Analytics themeConfig={themeConfig} />} />
                   <Route path="/projects" element={<ProjectManager themeConfig={themeConfig} />} />
+                  <Route path="/todos" element={<TodoManager />} />
                   <Route path="/pomodoro" element={<Pomodoro themeConfig={themeConfig} />} />
                   <Route path="/chat" element={<Chat />} />
                   <Route path="/profile" element={<Profile />} />

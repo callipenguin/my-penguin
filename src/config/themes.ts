@@ -63,7 +63,7 @@ const DEFAULT_ANIMATION: ThemeAnimationConfig = {
 // 🐧 펭귄 테마 (완전한 확장 버전)
 export const penguinTheme: ThemeConfigExtended = {
   id: "penguin",
-  name: "펭귄 테마",
+  name: "뒤뚱",
   emoji: "🐧",
   description: "차가운 빙하와 남극의 평온함",
   colors: {
@@ -175,7 +175,7 @@ export const penguinTheme: ThemeConfigExtended = {
 // 🦊 사막여우 테마 (완전한 확장 버전)
 export const desertFoxTheme: ThemeConfigExtended = {
   id: "desert-fox",
-  name: "사막여우 테마",
+  name: "휘리릭",
   emoji: "🦊",
   description: "따뜻한 사막과 오아시스의 활기",
   colors: {
@@ -287,7 +287,7 @@ export const desertFoxTheme: ThemeConfigExtended = {
 // 🐑 양 테마 (완전한 확장 버전)
 export const sheepTheme: ThemeConfigExtended = {
   id: "sheep",
-  name: "양 테마",
+  name: "메에",
   emoji: "🐑",
   description: "평화로운 목초지와 푸른 언덕",
   colors: {
@@ -399,7 +399,7 @@ export const sheepTheme: ThemeConfigExtended = {
 // 🐱 고양이 테마 (완전한 확장 버전)
 export const catTheme: ThemeConfigExtended = {
   id: "cat",
-  name: "고양이 테마",
+  name: "그르릉",
   emoji: "🐱",
   description: "아늑한 집과 도시 생활의 편안함",
   colors: {

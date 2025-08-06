@@ -89,6 +89,8 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
 
   // 현재 세션 추적을 위한 상태
   const [sessionStartTime, setSessionStartTime] = useState<string | null>(null);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null); // 현재 세션 고유 ID
+  const [savedSessionId, setSavedSessionId] = useState<string | null>(null); // 저장된 세션 ID 추적
   const [showCelebration, setShowCelebration] = useState(false);
   const [lastCompletedSession, setLastCompletedSession] = useState<{
     projectTitle: string;
@@ -97,7 +99,6 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
     duration: number;
     actualMinutes?: number; // 실제 경과 시간 추가
   } | null>(null);
-  const [currentSessionSaved, setCurrentSessionSaved] = useState(false); // 현재 세션 저장 상태 추적
 
   // 프로젝트/테스크 생성 다이얼로그 상태
   const [projectDialogOpen, setProjectDialogOpen] = useState(false);
@@ -108,6 +109,9 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
 
   // 알림 사운드 Ref
   const notificationAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  // 타이머 완료 처리 플래그
+  const timerCompletedRef = useRef<boolean>(false);
 
   useEffect(() => {
     loadProjects();
@@ -198,6 +202,7 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
     let saveInterval: NodeJS.Timeout | null = null;
 
     if (isActive && time > 0) {
+      timerCompletedRef.current = false; // 타이머 시작 시 플래그 리셋
       interval = setInterval(() => {
         setTime((prevTime) => {
           const newTime = prevTime - 1;
@@ -216,7 +221,17 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
         saveTimerState();
       }, 5000);
     } else if (time === 0) {
-      handleTimerComplete();
+      console.log(
+        `⏰ 타이머 완료 감지! isActive: ${isActive}, time: ${time}, timerCompleted: ${timerCompletedRef.current}`
+      );
+
+      if (!timerCompletedRef.current) {
+        console.log("🎯 handleTimerComplete 호출 시작!");
+        // timerCompletedRef.current = true; // 여기서 설정하지 말고 함수 내부에서 설정
+        handleTimerComplete();
+      } else {
+        console.log("⚠️ 이미 완료 처리됨 - 중복 실행 방지");
+      }
     }
 
     return () => {
@@ -422,24 +437,35 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
   };
 
   const startTimer = () => {
-    const now = Date.now();
-    setIsActive(true);
-    setSessionStartTime(new Date().toISOString());
+    if (!selectedProject || !selectedTask) {
+      alert("프로젝트와 작업을 선택해주세요!");
+      return;
+    }
 
-    // 백그라운드 타이머 설정
+    setIsActive(true);
+    const now = Date.now();
+    const sessionTime = new Date().toISOString();
+    const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`; // 고유한 세션 ID 생성
+
+    setSessionStartTime(sessionTime);
+    setCurrentSessionId(sessionId); // 현재 세션 ID 설정
+    setSavedSessionId(null); // 저장된 세션 ID 초기화
+    timerCompletedRef.current = false; // 타이머 완료 플래그 리셋
+
+    // 백그라운드 타이머를 위한 참조 값 설정
     startTimeRef.current = now;
     totalDurationRef.current = time;
     lastUpdateTimeRef.current = now;
 
     // 세션 저장 상태 초기화
-    setCurrentSessionSaved(false);
+    // setCurrentSessionSaved(false); // 제거
 
     initializeCircleBlocks(); // 블록 초기화
 
     // 타이머 상태 저장
     setTimeout(() => saveTimerState(), 100); // state 업데이트 후 저장
 
-    console.log(`⏰ 타이머 시작: ${time}초 (${Math.floor(time / 60)}분 ${time % 60}초)`);
+    console.log(`⏰ 타이머 시작: ${time}초 (${Math.floor(time / 60)}분 ${time % 60}초), 세션 ID: ${sessionId}`);
   };
 
   const pauseTimer = () => {
@@ -451,7 +477,14 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
       console.log(`⏸️ 타이머 일시정지: ${actualElapsed}초 경과, ${remainingTime}초 남음`);
 
       // 실제 경과 시간이 있고 아직 저장되지 않았다면 세션 저장 (부분 완료)
-      if (actualElapsed > 0 && !currentSessionSaved && sessionStartTime && selectedProject && selectedTask) {
+      if (
+        actualElapsed > 0 &&
+        currentSessionId &&
+        savedSessionId !== currentSessionId &&
+        sessionStartTime &&
+        selectedProject &&
+        selectedTask
+      ) {
         const actualMinutes = Math.round((actualElapsed / 60) * 100) / 100; // 소수점 2자리까지
         savePomodoroSession(getCurrentUser()?.uid || "", {
           projectId: selectedProject.id,
@@ -465,7 +498,7 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
           endTime: new Date().toISOString(),
           completed: false, // 중간에 멈춤
         });
-        setCurrentSessionSaved(true); // 저장 완료 표시
+        setSavedSessionId(currentSessionId); // 저장 완료 표시
       }
 
       setTime(remainingTime);
@@ -484,7 +517,15 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
     const actualElapsed = startTimeRef.current ? Math.floor((Date.now() - startTimeRef.current) / 1000) : 0;
 
     // 실제 경과 시간이 있고 아직 저장되지 않았다면 세션 저장 (리셋으로 중단)
-    if (wasActive && actualElapsed > 0 && !currentSessionSaved && sessionStartTime && selectedProject && selectedTask) {
+    if (
+      wasActive &&
+      actualElapsed > 0 &&
+      currentSessionId &&
+      savedSessionId !== currentSessionId &&
+      sessionStartTime &&
+      selectedProject &&
+      selectedTask
+    ) {
       const actualMinutes = Math.round((actualElapsed / 60) * 100) / 100;
       savePomodoroSession(getCurrentUser()?.uid || "", {
         projectId: selectedProject.id,
@@ -498,12 +539,15 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
         endTime: new Date().toISOString(),
         completed: false, // 리셋으로 중단
       });
-      setCurrentSessionSaved(true); // 저장 완료 표시
+      setSavedSessionId(currentSessionId); // 저장 완료 표시
     }
 
     setIsActive(false);
     setTime(selectedMinutes * 60);
     setSessionStartTime(null);
+    setCurrentSessionId(null); // 세션 ID 초기화
+    setSavedSessionId(null); // 저장된 세션 ID 초기화
+    timerCompletedRef.current = false; // 타이머 완료 플래그 리셋
     setAnimalPosition({ x: 50, y: 50 }); // 12시 방향으로 초기화
 
     // 백그라운드 타이머 초기화
@@ -512,13 +556,13 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
     lastUpdateTimeRef.current = 0;
 
     // 세션 저장 상태 초기화
-    setCurrentSessionSaved(false);
+    // setCurrentSessionSaved(false); // 제거
 
     // 타이머 상태 정리
     localStorage.removeItem("pomodoroTimerState");
 
     initializeCircleBlocks(); // 블록 초기화
-    console.log(`🔄 타이머 리셋: ${selectedMinutes}분으로 초기화`);
+    console.log("🔄 타이머 리셋");
   };
 
   // 요란한 알림 함수
@@ -563,6 +607,15 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
   };
 
   const handleTimerComplete = async () => {
+    // 🛡️ 중복 실행 방지 - 맨 처음에 체크!
+    if (timerCompletedRef.current) {
+      console.log("⚠️ handleTimerComplete 중복 실행 차단!");
+      return;
+    }
+    timerCompletedRef.current = true; // 즉시 플래그 설정
+
+    console.log("🎯 handleTimerComplete 실행 시작");
+
     const actualElapsed = startTimeRef.current
       ? Math.floor((Date.now() - startTimeRef.current) / 1000)
       : selectedMinutes * 60;
@@ -574,10 +627,17 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
     playCompletionNotification();
 
     // 뽀모도로 세션 기록 저장 (아직 저장되지 않았다면)
-    if (!currentSessionSaved && sessionStartTime && selectedProject && selectedTask) {
+    if (
+      currentSessionId &&
+      savedSessionId !== currentSessionId &&
+      sessionStartTime &&
+      selectedProject &&
+      selectedTask
+    ) {
       try {
         const user = getCurrentUser();
         if (user) {
+          console.log(`💾 세션 저장 시도: ${currentSessionId}`);
           const sessionData = {
             projectId: selectedProject.id,
             projectTitle: selectedProject.title,
@@ -593,7 +653,8 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
 
           const result = await savePomodoroSession(user.uid, sessionData);
           if (result.success) {
-            setCurrentSessionSaved(true); // 저장 완료 표시
+            setSavedSessionId(currentSessionId); // 저장 완료 표시
+            console.log(`✅ 세션 저장 완료: ${currentSessionId}`);
             setLastCompletedSession({
               projectTitle: selectedProject.title,
               taskTitle: selectedTask.title,
@@ -611,6 +672,7 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
     } else {
       // 이미 저장된 경우에도 축하 메시지는 보여줌
       if (selectedProject && selectedTask) {
+        console.log(`⚠️ 이미 저장된 세션: ${currentSessionId} (savedSessionId: ${savedSessionId})`);
         setLastCompletedSession({
           projectTitle: selectedProject.title,
           taskTitle: selectedTask.title,
@@ -629,10 +691,12 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
       const breakMinutes = Math.max(5, Math.floor(selectedMinutes / 5)); // 선택 시간의 1/5, 최소 5분
       setSelectedMinutes(breakMinutes);
       setTime(breakMinutes * 60);
+      timerCompletedRef.current = false; // 브레이크 세션을 위해 플래그 리셋
     } else {
       setIsBreak(false);
       setSelectedMinutes(25); // 기본값으로 복원
       setTime(25 * 60);
+      timerCompletedRef.current = false; // 워크 세션을 위해 플래그 리셋
     }
 
     // 백그라운드 타이머 초기화
@@ -640,8 +704,10 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
     totalDurationRef.current = 0;
     lastUpdateTimeRef.current = 0;
 
-    // 세션 저장 상태 초기화
-    setCurrentSessionSaved(false);
+    // 세션 저장 상태 초기화 - 다음 세션을 위해 ID들을 리셋
+    setCurrentSessionId(null);
+    setSavedSessionId(null);
+    // timerCompletedRef.current = false; // 다음 세션을 위해 플래그 리셋 - 제거! (위에서 개별적으로 처리)
 
     // 타이머 상태 정리
     localStorage.removeItem("pomodoroTimerState");
@@ -672,7 +738,8 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
         selectedTaskId: selectedTask?.id,
         selectedProjectTitle: selectedProject?.title,
         selectedTaskTitle: selectedTask?.title,
-        currentSessionSaved: currentSessionSaved,
+        currentSessionId: currentSessionId,
+        savedSessionId: savedSessionId,
         timestamp: Date.now(),
       };
       localStorage.setItem("pomodoroTimerState", JSON.stringify(timerState));
@@ -730,7 +797,8 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
           setSelectedMinutes(timerState.selectedMinutes);
           setSessionStartTime(timerState.sessionStartTime);
           setIsBreak(timerState.isBreak);
-          setCurrentSessionSaved(timerState.currentSessionSaved);
+          setCurrentSessionId(timerState.currentSessionId || null);
+          setSavedSessionId(timerState.savedSessionId || null);
 
           // ref 값들 복원
           startTimeRef.current = timerState.startTime;
@@ -908,7 +976,7 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
                 disabled={isActive}
                 marks={[
                   { value: 1, label: "1분" },
-                  { value: 5, label: "5분" },
+                  { value: 10, label: "10분" },
                   { value: 25, label: "25분" },
                   { value: 50, label: "50분" },
                   { value: 99, label: "99분" },

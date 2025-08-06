@@ -32,6 +32,8 @@ import {
   AdminPanelSettings as AdminIcon,
   AcUnit as IceIcon,
   Timer as TimerIcon,
+  Assignment as TodoIcon,
+  AccountTree as EpicIcon,
   // 테마별 추가 아이콘들
   Grass as GrassIcon,
   Home as CatHomeIcon,
@@ -179,6 +181,14 @@ const Layout: React.FC<LayoutProps> = ({ children, user, themeConfig }) => {
         emoji: getProjectEmoji(currentTheme),
         color: theme.palette.warning.main,
         description: themeConfig?.concepts?.projectManage || "프로젝트 관리",
+      },
+      {
+        text: "할일 & 에픽",
+        icon: <TodoIcon />,
+        path: "/todos",
+        emoji: "📝",
+        color: theme.palette.primary.main,
+        description: "할일과 대주제(에픽) 관리",
       },
       {
         text: "집중 여행",

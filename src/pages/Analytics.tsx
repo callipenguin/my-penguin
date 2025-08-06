@@ -63,6 +63,8 @@ import {
   loadPomodoroSessions,
   getWeeklyPomodoroStats,
   savePomodoroSession,
+  updatePomodoroSession,
+  deletePomodoroSession,
 } from "../utils/firebase";
 import dayjs from "dayjs";
 
@@ -403,31 +405,28 @@ const Analytics: React.FC<AnalyticsProps> = ({ themeConfig }) => {
       const user = getCurrentUser();
       if (!user) return;
 
-      // 기존 세션 찾기
-      const originalSession = allPomodoroSessions.find((s) => s.id === sessionId);
-      if (!originalSession) return;
+      // Firebase에서 실제 업데이트
+      const result = await updatePomodoroSession(user.uid, sessionId, {
+        duration: editValue.duration,
+        actualDuration: editValue.actualDuration || editValue.duration,
+        projectTitle: editValue.projectTitle,
+        taskTitle: editValue.taskTitle,
+      });
 
-      // 업데이트된 세션 데이터
-      const updatedSession: PomodoroSession = {
-        ...originalSession,
-        duration: editValue.duration || originalSession.duration,
-        actualDuration: editValue.actualDuration || editValue.duration || originalSession.duration,
-        projectTitle: editValue.projectTitle || originalSession.projectTitle,
-        taskTitle: editValue.taskTitle || originalSession.taskTitle,
-        updatedAt: new Date().toISOString(),
-      };
+      if (result.success) {
+        setEditingSession(null);
+        setEditValues({});
+        console.log(`✅ 세션 수정 완료: ${sessionId}`);
 
-      // 임시로 로컬 상태 업데이트
-      setAllPomodoroSessions((prev) => prev.map((session) => (session.id === sessionId ? updatedSession : session)));
-
-      setEditingSession(null);
-      setEditValues({});
-      console.log(`✅ 세션 수정 완료: ${sessionId}`);
-
-      // 데이터 새로고침
-      loadDetailedPomodoroData();
+        // 데이터 새로고침
+        loadDetailedPomodoroData();
+      } else {
+        console.error("세션 수정 실패:", result.error);
+        alert("세션 수정에 실패했습니다: " + result.error);
+      }
     } catch (error) {
       console.error("세션 수정 실패:", error);
+      alert("세션 수정 중 오류가 발생했습니다.");
     }
   };
 
@@ -443,15 +442,21 @@ const Analytics: React.FC<AnalyticsProps> = ({ themeConfig }) => {
       const user = getCurrentUser();
       if (!user) return;
 
-      // 임시로 로컬 상태 업데이트
-      setAllPomodoroSessions((prev) => prev.filter((session) => session.id !== sessionId));
+      // Firebase에서 실제 삭제
+      const result = await deletePomodoroSession(user.uid, sessionId);
 
-      console.log(`🗑️ 세션 삭제 완료: ${sessionId}`);
+      if (result.success) {
+        console.log(`🗑️ 세션 삭제 완료: ${sessionId}`);
 
-      // 데이터 새로고침
-      loadDetailedPomodoroData();
+        // 데이터 새로고침
+        loadDetailedPomodoroData();
+      } else {
+        console.error("세션 삭제 실패:", result.error);
+        alert("세션 삭제에 실패했습니다: " + result.error);
+      }
     } catch (error) {
       console.error("세션 삭제 실패:", error);
+      alert("세션 삭제 중 오류가 발생했습니다.");
     }
   };
 
