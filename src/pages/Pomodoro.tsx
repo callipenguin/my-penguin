@@ -45,6 +45,7 @@ import { Project } from "../types";
 import { loadUserData, getCurrentUser, savePomodoroSession, saveUserData } from "../utils/firebase";
 import { ThemeConfigExtended } from "../types";
 import { getThemeUI, getThemeGame, getThemeAnimation, isThemeType } from "../config/themes";
+import { usePomodoro } from "../contexts/PomodoroContext";
 
 // SimpleTodo 인터페이스 추가
 interface SimpleTodo {
@@ -67,16 +68,36 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
   const themeGame = getThemeGame(themeConfig);
   const themeAnimation = getThemeAnimation(themeConfig);
 
-  // 뽀모도로 상태
-  const [isActive, setIsActive] = useState(false);
-  const [selectedMinutes, setSelectedMinutes] = useState(25); // 기본 25분
-  const [time, setTime] = useState(25 * 60); // 초 단위
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [selectedTask, setSelectedTask] = useState<SimpleTodo | null>(null);
+  // Context에서 전역 뽀모도로 상태 가져오기
+  const {
+    isActive: contextIsActive,
+    time: contextTime,
+    totalTime: contextTotalTime,
+    selectedProject: contextSelectedProject,
+    selectedTask: contextSelectedTask,
+    isBreak: contextIsBreak,
+    completedSessions: contextCompletedSessions,
+    sessionStartTime: contextSessionStartTime,
+    currentSessionId: contextCurrentSessionId,
+    startTimer: contextStartTimer,
+    pauseTimer: contextPauseTimer,
+    resetTimer: contextResetTimer,
+    setTime: contextSetTime,
+    setProject: contextSetProject,
+    setTask: contextSetTask,
+    setIsBreak: contextSetIsBreak,
+  } = usePomodoro();
+
+  // 뽀모도로 상태 (Context와 동기화)
+  const [isActive, setIsActive] = useState(contextIsActive);
+  const [selectedMinutes, setSelectedMinutes] = useState(Math.floor(contextTotalTime / 60));
+  const [time, setTime] = useState(contextTime);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(contextSelectedProject);
+  const [selectedTask, setSelectedTask] = useState<SimpleTodo | null>(contextSelectedTask);
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectTodos, setProjectTodos] = useState<{ [projectId: string]: SimpleTodo[] }>({});
-  const [isBreak, setIsBreak] = useState(false);
-  const [completedSessions, setCompletedSessions] = useState(0);
+  const [isBreak, setIsBreak] = useState(contextIsBreak);
+  const [completedSessions, setCompletedSessions] = useState(contextCompletedSessions);
 
   // 백그라운드 타이머를 위한 참조 값들
   const startTimeRef = useRef<number | null>(null);
@@ -112,6 +133,25 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
 
   // 타이머 완료 처리 플래그
   const timerCompletedRef = useRef<boolean>(false);
+
+  // Context 상태와 로컬 상태 동기화
+  useEffect(() => {
+    setIsActive(contextIsActive);
+    setTime(contextTime);
+    setSelectedProject(contextSelectedProject);
+    setSelectedTask(contextSelectedTask);
+    setIsBreak(contextIsBreak);
+    setCompletedSessions(contextCompletedSessions);
+    setSelectedMinutes(Math.floor(contextTotalTime / 60));
+  }, [
+    contextIsActive,
+    contextTime,
+    contextSelectedProject,
+    contextSelectedTask,
+    contextIsBreak,
+    contextCompletedSessions,
+    contextTotalTime,
+  ]);
 
   useEffect(() => {
     loadProjects();
@@ -442,6 +482,15 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
       return;
     }
 
+    // Context에 프로젝트와 작업 설정
+    contextSetProject(selectedProject);
+    contextSetTask(selectedTask);
+    contextSetTime(selectedMinutes);
+
+    // Context 타이머 시작
+    contextStartTimer();
+
+    // 로컬 상태도 업데이트
     setIsActive(true);
     const now = Date.now();
     const sessionTime = new Date().toISOString();
@@ -457,9 +506,6 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
     totalDurationRef.current = time;
     lastUpdateTimeRef.current = now;
 
-    // 세션 저장 상태 초기화
-    // setCurrentSessionSaved(false); // 제거
-
     initializeCircleBlocks(); // 블록 초기화
 
     // 타이머 상태 저장
@@ -469,6 +515,9 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
   };
 
   const pauseTimer = () => {
+    // Context 타이머 일시정지
+    contextPauseTimer();
+
     if (startTimeRef.current) {
       const now = Date.now();
       const actualElapsed = Math.floor((now - startTimeRef.current) / 1000);
@@ -513,6 +562,9 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
   };
 
   const resetTimer = () => {
+    // Context 타이머 리셋
+    contextResetTimer();
+
     const wasActive = isActive;
     const actualElapsed = startTimeRef.current ? Math.floor((Date.now() - startTimeRef.current) / 1000) : 0;
 
@@ -554,9 +606,6 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
     startTimeRef.current = null;
     totalDurationRef.current = 0;
     lastUpdateTimeRef.current = 0;
-
-    // 세션 저장 상태 초기화
-    // setCurrentSessionSaved(false); // 제거
 
     // 타이머 상태 정리
     localStorage.removeItem("pomodoroTimerState");
@@ -969,7 +1018,10 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
               </Typography>
               <Slider
                 value={selectedMinutes}
-                onChange={(_, value) => setSelectedMinutes(value as number)}
+                onChange={(_, value) => {
+                  setSelectedMinutes(value as number);
+                  contextSetTime(value as number); // Context에도 반영
+                }}
                 min={1}
                 max={99}
                 step={1}
@@ -1001,7 +1053,9 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
                 onChange={(e) => {
                   const project = projects.find((p) => p.id === e.target.value);
                   setSelectedProject(project || null);
+                  contextSetProject(project || null); // Context에도 반영
                   setSelectedTask(null);
+                  contextSetTask(null); // Context에도 반영
                   if (project) {
                     loadProjectTodos();
                   }
@@ -1036,6 +1090,7 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
                     onChange={(e) => {
                       const task = availableTasks.find((t) => t.id === e.target.value);
                       setSelectedTask(task || null);
+                      contextSetTask(task || null); // Context에도 반영
                     }}
                   >
                     {availableTasks.map((task) => (
