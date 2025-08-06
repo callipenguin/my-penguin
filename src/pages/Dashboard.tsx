@@ -287,7 +287,7 @@ const Dashboard: React.FC<DashboardProps> = ({ themeConfig }) => {
 
   const quickActions = [
     {
-      title: "건강 체크",
+      title: "컨디션 체크",
       description: "오늘의 컨디션을 기록하세요",
       icon: <LocalHospital />,
       color: theme.palette.success.main,

@@ -11,6 +11,7 @@ import "dayjs/locale/ko";
 import Layout from "./components/Layout";
 import Login from "./components/Login";
 import PomodoroWidget from "./components/PomodoroWidget";
+import EmergencyAlertDialog from "./components/EmergencyAlertDialog";
 
 // Pages
 import Dashboard from "./pages/Dashboard";
@@ -35,6 +36,7 @@ import { ThemeSettings, ThemeType, ColorMode, ThemeConfigExtended } from "./type
 import { PomodoroProvider } from "./contexts/PomodoroContext";
 import { TodoProvider } from "./contexts/TodoContext";
 import "./utils/dataRecovery"; // 데이터 복구 유틸리티 로드
+import "./utils/emergencyAlerts"; // 관리자 유틸리티 전역 등록
 
 // 테마 생성 함수
 const createAppTheme = (themeSettings: ThemeSettings) => {
@@ -282,6 +284,8 @@ function App() {
                       )}
                     </Routes>
                     <PomodoroWidget />
+                    {/* 긴급알림 시스템 */}
+                    <EmergencyAlertDialog />
                   </Layout>
                 </Box>
               </Router>

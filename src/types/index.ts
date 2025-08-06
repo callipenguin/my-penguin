@@ -377,3 +377,23 @@ export interface TodoStats {
     completed: number;
   }>;
 }
+
+// 긴급알림 시스템
+export interface EmergencyAlert {
+  id: string;
+  title: string;
+  message: string;
+  type: "info" | "warning" | "error" | "success";
+  severity: "low" | "medium" | "high" | "critical";
+  createdAt: string;
+  expiresAt?: string; // 만료일 (선택적)
+  dismissible: boolean; // 사용자가 닫을 수 있는지
+  persistent: boolean; // 새로고침해도 계속 표시할지
+  targetUsers?: string[]; // 특정 사용자만 대상 (선택적)
+  dismissed: boolean; // 사용자가 닫았는지
+  dismissedAt?: string; // 언제 닫았는지
+  showOnce?: boolean; // 한 번만 표시할지
+}
+
+export type AlertSeverity = EmergencyAlert["severity"];
+export type AlertType = EmergencyAlert["type"];
