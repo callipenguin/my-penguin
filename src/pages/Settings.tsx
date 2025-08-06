@@ -566,6 +566,8 @@ const Settings: React.FC<SettingsProps> = ({ onThemeChange, themeSettings, theme
                               ...prev,
                               theme: { ...prev.theme, type: themeItem.id },
                             }));
+                            // favicon과 제목 업데이트를 위한 이벤트 발생
+                            window.dispatchEvent(new CustomEvent("themeChanged"));
                           }}
                         >
                           <Box sx={{ textAlign: "center" }}>
@@ -1102,6 +1104,8 @@ const Settings: React.FC<SettingsProps> = ({ onThemeChange, themeSettings, theme
                                 ...prev,
                                 theme: { ...prev.theme, type: themeItem.id },
                               }));
+                              // favicon과 제목 업데이트를 위한 이벤트 발생
+                              window.dispatchEvent(new CustomEvent("themeChanged"));
                             }}
                           >
                             <Box sx={{ textAlign: "center" }}>

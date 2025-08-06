@@ -10,6 +10,7 @@ import "dayjs/locale/ko";
 // Components
 import Layout from "./components/Layout";
 import Login from "./components/Login";
+import PomodoroWidget from "./components/PomodoroWidget";
 
 // Pages
 import Dashboard from "./pages/Dashboard";
@@ -29,6 +30,9 @@ import { onAuthStateChange, getUserAccessStatus, isAdmin, saveAccessRequest } fr
 // Theme System
 import { getThemeConfig, getThemeColors } from "./config/themes";
 import { ThemeSettings, ThemeType, ColorMode, ThemeConfigExtended } from "./types";
+
+// Context
+import { PomodoroProvider } from "./contexts/PomodoroContext";
 
 // 테마 생성 함수
 const createAppTheme = (themeSettings: ThemeSettings) => {
@@ -247,33 +251,36 @@ function App() {
       <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="ko">
         <ThemeProvider theme={theme}>
           <CssBaseline />
-          <Router>
-            <Box sx={{ height: "100vh", display: "flex" }}>
-              <Layout user={user} themeConfig={themeConfig}>
-                <Routes>
-                  <Route path="/" element={<Dashboard themeConfig={themeConfig} />} />
-                  <Route path="/condition" element={<ConditionTracker themeConfig={themeConfig} />} />
-                  <Route path="/analytics" element={<Analytics themeConfig={themeConfig} />} />
-                  <Route path="/projects" element={<ProjectManager themeConfig={themeConfig} />} />
-                  <Route path="/todos" element={<TodoManager />} />
-                  <Route path="/pomodoro" element={<Pomodoro themeConfig={themeConfig} />} />
-                  <Route path="/chat" element={<Chat />} />
-                  <Route path="/profile" element={<Profile />} />
-                  <Route
-                    path="/settings"
-                    element={
-                      <Settings
-                        onThemeChange={handleThemeChange}
-                        themeSettings={themeSettings}
-                        themeConfig={themeConfig}
-                      />
-                    }
-                  />
-                  {isAdmin(user.email) && <Route path="/admin" element={<AdminPanel themeConfig={themeConfig} />} />}
-                </Routes>
-              </Layout>
-            </Box>
-          </Router>
+          <PomodoroProvider>
+            <Router>
+              <Box sx={{ height: "100vh", display: "flex" }}>
+                <Layout user={user} themeConfig={themeConfig}>
+                  <Routes>
+                    <Route path="/" element={<Dashboard themeConfig={themeConfig} />} />
+                    <Route path="/condition" element={<ConditionTracker themeConfig={themeConfig} />} />
+                    <Route path="/analytics" element={<Analytics themeConfig={themeConfig} />} />
+                    <Route path="/projects" element={<ProjectManager themeConfig={themeConfig} />} />
+                    <Route path="/todos" element={<TodoManager />} />
+                    <Route path="/pomodoro" element={<Pomodoro themeConfig={themeConfig} />} />
+                    <Route path="/chat" element={<Chat />} />
+                    <Route path="/profile" element={<Profile />} />
+                    <Route
+                      path="/settings"
+                      element={
+                        <Settings
+                          onThemeChange={handleThemeChange}
+                          themeSettings={themeSettings}
+                          themeConfig={themeConfig}
+                        />
+                      }
+                    />
+                    {isAdmin(user.email) && <Route path="/admin" element={<AdminPanel themeConfig={themeConfig} />} />}
+                  </Routes>
+                  <PomodoroWidget />
+                </Layout>
+              </Box>
+            </Router>
+          </PomodoroProvider>
         </ThemeProvider>
       </LocalizationProvider>
     );
