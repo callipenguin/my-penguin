@@ -24,7 +24,7 @@ interface PomodoroState {
 
 // 뽀모도로 액션 인터페이스
 interface PomodoroActions {
-  startTimer: () => void;
+  startTimer: () => boolean; // boolean 반환으로 수정
   pauseTimer: () => void;
   resetTimer: () => void;
   setTime: (minutes: number) => void;
@@ -140,12 +140,24 @@ export const PomodoroProvider: React.FC<PomodoroProviderProps> = ({ children }) 
 
   // 액션 함수들
   const startTimer = () => {
+    // 프로젝트와 작업이 선택되어 있는지 검증
+    if (!selectedProject) {
+      console.warn("⚠️ 프로젝트를 선택해주세요!");
+      return false; // 시작 실패
+    }
+
+    if (!selectedTask) {
+      console.warn("⚠️ 작업을 선택해주세요!");
+      return false; // 시작 실패
+    }
+
     if (!sessionStartTime) {
       setSessionStartTime(new Date().toISOString());
       setCurrentSessionId(Date.now().toString());
     }
     startTimeRef.current = Date.now();
     setIsActive(true);
+    return true; // 시작 성공
   };
 
   const pauseTimer = () => {

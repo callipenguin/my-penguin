@@ -488,7 +488,11 @@ const Pomodoro: React.FC<PomodoroProps> = ({ themeConfig }) => {
     contextSetTime(selectedMinutes);
 
     // Context 타이머 시작
-    contextStartTimer();
+    const success = contextStartTimer();
+    if (!success) {
+      alert("타이머 시작에 실패했습니다. 프로젝트와 작업을 다시 확인해주세요.");
+      return;
+    }
 
     // 로컬 상태도 업데이트
     setIsActive(true);

@@ -44,14 +44,14 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ onClose }) => {
           bottom: 20,
           right: 20,
           zIndex: 1000,
-          maxWidth: isMinimized ? 200 : 320,
-          minWidth: isMinimized ? 160 : 280,
+          maxWidth: isMinimized ? 180 : 280,
+          minWidth: isMinimized ? 160 : 260,
         }}
       >
         <Fade in={shouldShow}>
           <Card
             sx={{
-              borderRadius: 4,
+              borderRadius: isMinimized ? 2 : 3,
               boxShadow: "0 8px 32px rgba(0, 0, 0, 0.2)",
               background: isBreak
                 ? "linear-gradient(135deg, #4CAF50 0%, #81C784 100%)"
@@ -59,23 +59,32 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ onClose }) => {
               color: "white",
               cursor: isMinimized ? "pointer" : "default",
               transition: "all 0.3s ease",
+              border: "2px solid rgba(255, 255, 255, 0.3)",
               "&:hover": {
                 transform: "translateY(-4px)",
                 boxShadow: "0 12px 40px rgba(0, 0, 0, 0.3)",
+                border: "2px solid rgba(255, 255, 255, 0.5)",
               },
             }}
             onClick={isMinimized ? handleWidgetClick : undefined}
           >
-            <Box sx={{ p: isMinimized ? 1.5 : 2 }}>
+            <Box sx={{ p: isMinimized ? 1 : 2 }}>
               {/* 헤더 */}
               <Box
-                sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: isMinimized ? 0 : 1 }}
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  mb: isMinimized ? 0.5 : 1,
+                  borderBottom: isMinimized ? "none" : "1px solid rgba(255, 255, 255, 0.2)",
+                  pb: isMinimized ? 0 : 1,
+                }}
               >
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <Timer sx={{ fontSize: isMinimized ? "1rem" : "1.2rem" }} />
+                  <Timer sx={{ fontSize: isMinimized ? "0.9rem" : "1.1rem" }} />
                   {!isMinimized && (
-                    <Typography variant="body2" fontWeight="bold">
-                      {isBreak ? "🌱 휴식 시간" : "🍅 집중 시간"}
+                    <Typography variant="body2" fontWeight="bold" sx={{ fontSize: "0.85rem" }}>
+                      {isBreak ? "🌱 BREAK" : "🍅 FOCUS"}
                     </Typography>
                   )}
                 </Box>
@@ -86,7 +95,13 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ onClose }) => {
                       e.stopPropagation();
                       setIsMinimized(!isMinimized);
                     }}
-                    sx={{ color: "white", opacity: 0.7, "&:hover": { opacity: 1 } }}
+                    sx={{
+                      color: "white",
+                      opacity: 0.7,
+                      "&:hover": { opacity: 1 },
+                      width: 24,
+                      height: 24,
+                    }}
                   >
                     {isMinimized ? <Maximize fontSize="small" /> : <Minimize fontSize="small" />}
                   </IconButton>
@@ -97,7 +112,13 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ onClose }) => {
                         e.stopPropagation();
                         onClose();
                       }}
-                      sx={{ color: "white", opacity: 0.7, "&:hover": { opacity: 1 } }}
+                      sx={{
+                        color: "white",
+                        opacity: 0.7,
+                        "&:hover": { opacity: 1 },
+                        width: 24,
+                        height: 24,
+                      }}
                     >
                       <Close fontSize="small" />
                     </IconButton>
@@ -105,19 +126,43 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ onClose }) => {
                 </Box>
               </Box>
 
-              {/* 시간 표시 */}
-              <Typography
-                variant={isMinimized ? "h6" : "h4"}
-                fontWeight="bold"
+              {/* 타이머 디스플레이 */}
+              <Box
                 sx={{
                   textAlign: "center",
-                  mb: isMinimized ? 0 : 1,
-                  fontFamily: "monospace",
-                  fontSize: isMinimized ? "1.2rem" : undefined,
+                  mb: isMinimized ? 0.5 : 2,
+                  py: isMinimized ? 0.5 : 1,
+                  backgroundColor: "rgba(0, 0, 0, 0.2)",
+                  borderRadius: 2,
+                  border: "1px solid rgba(255, 255, 255, 0.2)",
                 }}
               >
-                {formatTime(time)}
-              </Typography>
+                <Typography
+                  variant={isMinimized ? "h5" : "h3"}
+                  fontWeight="bold"
+                  sx={{
+                    fontFamily: "'Roboto Mono', 'Courier New', monospace",
+                    fontSize: isMinimized ? "1.5rem" : "2.2rem",
+                    letterSpacing: "0.05em",
+                    textShadow: "0 2px 4px rgba(0,0,0,0.3)",
+                  }}
+                >
+                  {formatTime(time)}
+                </Typography>
+                {!isMinimized && (
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      opacity: 0.8,
+                      fontSize: "0.7rem",
+                      display: "block",
+                      mt: 0.5,
+                    }}
+                  >
+                    {Math.floor(progress)}% COMPLETE
+                  </Typography>
+                )}
+              </Box>
 
               {!isMinimized && (
                 <>
@@ -126,54 +171,131 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ onClose }) => {
                     variant="determinate"
                     value={progress}
                     sx={{
-                      height: 6,
-                      borderRadius: 3,
+                      height: 8,
+                      borderRadius: 4,
                       mb: 2,
-                      backgroundColor: "rgba(255, 255, 255, 0.3)",
+                      backgroundColor: "rgba(0, 0, 0, 0.3)",
+                      border: "1px solid rgba(255, 255, 255, 0.2)",
                       "& .MuiLinearProgress-bar": {
-                        borderRadius: 3,
+                        borderRadius: 4,
                         backgroundColor: "rgba(255, 255, 255, 0.9)",
+                        boxShadow: "0 0 10px rgba(255, 255, 255, 0.5)",
                       },
                     }}
                   />
 
                   {/* 프로젝트/작업 정보 */}
-                  {(selectedProject || selectedTask) && (
-                    <Box sx={{ mb: 2 }}>
+                  {selectedProject || selectedTask ? (
+                    <Box
+                      sx={{
+                        mb: 2,
+                        p: 1,
+                        backgroundColor: "rgba(0, 0, 0, 0.2)",
+                        borderRadius: 2,
+                        border: "1px solid rgba(255, 255, 255, 0.2)",
+                      }}
+                    >
                       {selectedProject && (
-                        <Chip
-                          label={selectedProject.title}
-                          size="small"
+                        <Typography
+                          variant="caption"
                           sx={{
-                            backgroundColor: "rgba(255, 255, 255, 0.2)",
-                            color: "white",
-                            mr: 1,
-                            mb: selectedTask ? 0.5 : 0,
+                            display: "block",
+                            opacity: 0.9,
+                            fontSize: "0.7rem",
+                            fontWeight: "bold",
                           }}
-                        />
+                        >
+                          📁 {selectedProject.title}
+                        </Typography>
                       )}
                       {selectedTask && (
-                        <Typography variant="caption" sx={{ display: "block", opacity: 0.9 }}>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            display: "block",
+                            opacity: 0.8,
+                            fontSize: "0.7rem",
+                            mt: 0.5,
+                          }}
+                        >
                           📝 {selectedTask.title}
                         </Typography>
                       )}
                     </Box>
+                  ) : (
+                    <Box
+                      sx={{
+                        mb: 2,
+                        p: 1,
+                        backgroundColor: "rgba(255, 255, 255, 0.1)",
+                        borderRadius: 2,
+                        border: "1px dashed rgba(255, 255, 255, 0.3)",
+                      }}
+                    >
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          display: "block",
+                          opacity: 0.7,
+                          fontSize: "0.65rem",
+                          textAlign: "center",
+                          fontStyle: "italic",
+                        }}
+                      >
+                        ⚠️ No project/task selected
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          display: "block",
+                          opacity: 0.6,
+                          fontSize: "0.6rem",
+                          textAlign: "center",
+                          mt: 0.5,
+                        }}
+                      >
+                        Click to set up
+                      </Typography>
+                    </Box>
                   )}
 
                   {/* 컨트롤 버튼들 */}
-                  <Box sx={{ display: "flex", justifyContent: "center", gap: 1 }}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "center",
+                      gap: 1,
+                      mb: 1,
+                    }}
+                  >
                     <IconButton
                       size="small"
                       onClick={(e) => {
                         e.stopPropagation();
-                        isActive ? pauseTimer() : startTimer();
+                        if (isActive) {
+                          pauseTimer();
+                        } else {
+                          const success = startTimer();
+                          if (!success) {
+                            // 시작 실패 시 알림
+                            alert("프로젝트와 작업을 먼저 선택해주세요! 🎯\n\n뽀모도로 페이지에서 설정할 수 있습니다.");
+                          }
+                        }
                       }}
+                      disabled={!selectedProject || !selectedTask}
                       sx={{
                         backgroundColor: "rgba(255, 255, 255, 0.2)",
                         color: "white",
+                        width: 36,
+                        height: 36,
+                        border: "1px solid rgba(255, 255, 255, 0.3)",
                         "&:hover": {
                           backgroundColor: "rgba(255, 255, 255, 0.3)",
-                          transform: "scale(1.1)",
+                          transform: "scale(1.05)",
+                        },
+                        "&:disabled": {
+                          backgroundColor: "rgba(255, 255, 255, 0.1)",
+                          color: "rgba(255, 255, 255, 0.5)",
                         },
                         transition: "all 0.2s ease",
                       }}
@@ -190,9 +312,12 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ onClose }) => {
                       sx={{
                         backgroundColor: "rgba(255, 255, 255, 0.2)",
                         color: "white",
+                        width: 36,
+                        height: 36,
+                        border: "1px solid rgba(255, 255, 255, 0.3)",
                         "&:hover": {
                           backgroundColor: "rgba(255, 255, 255, 0.3)",
-                          transform: "scale(1.1)",
+                          transform: "scale(1.05)",
                         },
                         transition: "all 0.2s ease",
                       }}
@@ -207,12 +332,11 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ onClose }) => {
                     sx={{
                       display: "block",
                       textAlign: "center",
-                      mt: 1,
-                      opacity: 0.7,
-                      fontSize: "0.7rem",
+                      opacity: 0.6,
+                      fontSize: "0.65rem",
                     }}
                   >
-                    클릭해서 전체 화면으로 📱
+                    📱 Click to expand
                   </Typography>
                 </>
               )}
@@ -229,7 +353,7 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ onClose }) => {
                     fontSize: "0.6rem",
                   }}
                 >
-                  클릭해서 확장 ↗️
+                  ↗️ Click to expand
                 </Typography>
               )}
             </Box>
