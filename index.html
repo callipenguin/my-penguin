@@ -7,14 +7,15 @@
     <title>개인 비서 🤖</title>
 
     <!-- PWA 매니페스트 -->
-    <link rel="manifest" href="/%EB%B9%84%EC%84%9C/manifest.json" />
-    <meta name="theme-color" content="#2196F3" />
-    <meta name="description" content="ADHD 친화적인 개인 생산성 관리 앱" />
+    <link rel="manifest" href="./manifest.json" />
+    <meta name="theme-color" content="#667eea" />
+    <meta name="description" content="나만의 펭귄 개인 비서 🐧 - 컨디션 관리, 프로젝트 추진, 데이터 분석까지!" />
 
-    <!-- iOS PWA 지원 -->
+    <!-- PWA 지원 -->
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="펭귄비서" />
+    <meta name="apple-mobile-web-app-title" content="펭귄 비서" />
     <link
       rel="apple-touch-icon"
       href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐧</text></svg>"
@@ -78,12 +79,12 @@
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
           navigator.serviceWorker
-            .register("/sw.js")
+            .register("./sw.js")
             .then((registration) => {
-              console.log("SW registered: ", registration);
+              console.log("🐧 SW registered: ", registration);
             })
             .catch((registrationError) => {
-              console.log("SW registration failed: ", registrationError);
+              console.log("🐧 SW registration failed: ", registrationError);
             });
         });
       }
@@ -103,7 +104,7 @@
         width: 100vw;
       }
     </style>
-    <script type="module" crossorigin src="/%EB%B9%84%EC%84%9C/assets/index-d25869c5.js"></script>
+    <script type="module" crossorigin src="/assistant/assets/index-847c16fc.js"></script>
   </head>
   <body>
     <div id="root"></div>
