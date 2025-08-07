@@ -2,24 +2,24 @@
   "name": "펭귄 개인 비서",
   "short_name": "펭귄 비서",
   "description": "나만의 펭귄 개인 비서 🐧 - 컨디션 관리, 프로젝트 추진, 데이터 분석까지!",
-  "start_url": "/assistant/",
+  "start_url": "/my-penguin/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#667eea",
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/assistant/favicon.ico",
+      "src": "/my-penguin/favicon.ico",
       "sizes": "64x64 32x32 24x24 16x16",
       "type": "image/x-icon"
     },
     {
-      "src": "/assistant/icon-192.png",
+      "src": "/my-penguin/icon-192.png",
       "type": "image/png",
       "sizes": "192x192"
     },
     {
-      "src": "/assistant/icon-512.png",
+      "src": "/my-penguin/icon-512.png",
       "type": "image/png",
       "sizes": "512x512"
     }
@@ -27,6 +27,6 @@
   "categories": ["productivity", "utilities"],
   "lang": "ko",
   "dir": "ltr",
-  "scope": "/assistant/",
+  "scope": "/my-penguin/",
   "prefer_related_applications": false
 }

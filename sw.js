@@ -1,6 +1,6 @@
 // 펭귄 비서 Service Worker
 const CACHE_NAME = "penguin-assistant-v1";
-const urlsToCache = ["/assistant/", "/assistant/index.html", "/assistant/manifest.json"];
+const urlsToCache = ["/my-penguin/", "/my-penguin/index.html", "/my-penguin/manifest.json"];
 
 // 설치 이벤트
 self.addEventListener("install", (event) => {
@@ -46,7 +46,7 @@ self.addEventListener("fetch", (event) => {
       return fetch(event.request).catch(() => {
         // 네트워크 오류 시 기본 페이지 반환
         if (event.request.destination === "document") {
-          return caches.match("/assistant/index.html");
+          return caches.match("/my-penguin/index.html");
         }
       });
     })
