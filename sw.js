@@ -49,14 +49,29 @@ self.addEventListener("activate", (event) => {
 
 // 네트워크 요청 처리
 self.addEventListener("fetch", (event) => {
-  // POST 요청은 캐싱하지 않음
+  // GET 요청만 처리 (POST, PUT, DELETE 등은 완전히 무시)
   if (event.request.method !== "GET") {
     return;
   }
 
   // 지원되지 않는 URL 스키마 필터링
-  const url = new URL(event.request.url);
-  if (url.protocol !== "http:" && url.protocol !== "https:") {
+  try {
+    const url = new URL(event.request.url);
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
+      return;
+    }
+  } catch (error) {
+    // URL 파싱 실패 시 무시
+    return;
+  }
+
+  // Firebase나 외부 API 요청은 캐싱하지 않음
+  if (
+    event.request.url.includes("firestore.googleapis.com") ||
+    event.request.url.includes("identitytoolkit.googleapis.com") ||
+    event.request.url.includes("firebase") ||
+    event.request.url.includes("googleapis.com")
+  ) {
     return;
   }
 
@@ -64,14 +79,16 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        // 성공적으로 가져온 경우 캐시에 저장
-        if (response.status === 200) {
+        // 성공적으로 가져온 경우만 캐시에 저장
+        if (response.status === 200 && response.type === "basic") {
           const responseClone = response.clone();
           caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseClone).catch((error) => {
-              // 캐시 저장 실패 시 조용히 무시 (로그만 출력)
-              console.warn("Cache put failed:", error.message);
-            });
+            // 캐싱 가능한 요청인지 다시 한번 확인
+            if (event.request.method === "GET") {
+              cache.put(event.request, responseClone).catch(() => {
+                // 캐시 저장 실패 시 조용히 무시 (로그 출력 안함)
+              });
+            }
           });
         }
         return response;
