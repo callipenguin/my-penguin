@@ -7,7 +7,7 @@
     <title>개인 비서 🤖</title>
 
     <!-- PWA 매니페스트 -->
-    <link rel="manifest" href="./manifest.json" />
+    <link rel="manifest" href="./manifest.json?v=2" />
     <meta name="theme-color" content="#667eea" />
     <meta name="description" content="나만의 펭귄 개인 비서 🐧 - 컨디션 관리, 프로젝트 추진, 데이터 분석까지!" />
 
@@ -82,6 +82,22 @@
             .register("./sw.js")
             .then((registration) => {
               console.log("🐧 SW registered: ", registration);
+
+              // 업데이트 확인
+              registration.addEventListener("updatefound", () => {
+                const newWorker = registration.installing;
+                if (newWorker) {
+                  newWorker.addEventListener("statechange", () => {
+                    if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+                      console.log("🐧 새 버전 사용 가능! 페이지를 새로고침합니다.");
+                      window.location.reload();
+                    }
+                  });
+                }
+              });
+
+              // 즉시 업데이트 확인
+              registration.update();
             })
             .catch((registrationError) => {
               console.log("🐧 SW registration failed: ", registrationError);
