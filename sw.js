@@ -49,10 +49,15 @@ self.addEventListener("activate", (event) => {
 
 // 네트워크 요청 처리
 self.addEventListener("fetch", (event) => {
-  // 🛡️ 지원되지 않는 스킴 필터링
+  // POST 요청은 캐싱하지 않음
+  if (event.request.method !== "GET") {
+    return;
+  }
+
+  // 지원되지 않는 URL 스키마 필터링
   const url = new URL(event.request.url);
   if (url.protocol !== "http:" && url.protocol !== "https:") {
-    return; // chrome-extension:, data:, blob: 등 무시
+    return;
   }
 
   // 네트워크 우선 전략 (항상 최신 파일 가져오기)
