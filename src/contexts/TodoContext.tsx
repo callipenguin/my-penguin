@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { Todo, Epic, Project } from "../types";
+import { Todo, Epic, Project, Priority, EpicStatus } from "../types";
 import dayjs from "dayjs";
+import { getCurrentUser, loadUserData } from "../utils/firebase";
 
 // ID 생성 함수
 const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -159,6 +160,9 @@ interface TodoContextType {
   getTodosByProjectId: (projectId: string) => Todo[];
   getTodosByEpicId: (epicId: string) => Todo[];
   getProjectsByEpicId: (epicId: string) => Project[];
+
+  // Firebase 데이터 새로고침
+  refreshFirebaseData: () => Promise<void>;
 }
 
 // Context 생성
@@ -175,11 +179,93 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
   const [epics, setEpics] = useState<Epic[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
 
+  // Firebase 데이터 상태
+  const [firebaseProjects, setFirebaseProjects] = useState<any[]>([]);
+  const [firebaseProjectTodos, setFirebaseProjectTodos] = useState<any[]>([]);
+
   // localStorage 키
   const STORAGE_KEYS = {
     todos: "todos",
     epics: "epics",
     projects: "projects",
+  };
+
+  // Firebase 데이터 로드 함수
+  const loadFirebaseData = async () => {
+    try {
+      const user = getCurrentUser();
+      if (user) {
+        // Firebase 프로젝트 로드
+        const projectsResult = await loadUserData(user.uid, "projects");
+        if (projectsResult.success && projectsResult.data) {
+          console.log("🔥 TodoContext: Firebase 프로젝트 로드 성공:", projectsResult.data);
+          setFirebaseProjects(projectsResult.data);
+        }
+
+        // Firebase 할일 로드
+        const todosResult = await loadUserData(user.uid, "projectTodos");
+        if (todosResult.success && todosResult.data) {
+          console.log("🔥 TodoContext: Firebase 할일 로드 성공:", todosResult.data);
+          setFirebaseProjectTodos(todosResult.data);
+        }
+      }
+    } catch (error) {
+      console.error("❌ TodoContext: Firebase 데이터 로드 실패:", error);
+    }
+  };
+
+  // 통합 프로젝트 목록 (localStorage + Firebase)
+  const getAllProjects = () => {
+    const combinedProjects = [...projects];
+
+    // Firebase 프로젝트를 TodoContext 형식으로 변환하여 추가
+    firebaseProjects.forEach((fbProject) => {
+      // 중복 체크 (제목으로)
+      if (!combinedProjects.find((p) => p.title === fbProject.title)) {
+        combinedProjects.push({
+          id: fbProject.id || generateId(),
+          title: fbProject.title,
+          description: fbProject.description || "",
+          status: fbProject.status || "active",
+          priority: fbProject.priority || "medium",
+          startDate: fbProject.startDate,
+          dueDate: fbProject.dueDate,
+          progress: fbProject.progress || 0,
+          tasks: fbProject.tasks || [],
+          tags: fbProject.tags || [],
+          createdAt: fbProject.createdAt || dayjs().toISOString(),
+          updatedAt: fbProject.updatedAt || dayjs().toISOString(),
+        });
+      }
+    });
+
+    return combinedProjects;
+  };
+
+  // 통합 할일 목록 (localStorage + Firebase)
+  const getAllTodos = () => {
+    const combinedTodos = [...todos];
+
+    // Firebase 할일을 TodoContext 형식으로 변환하여 추가
+    firebaseProjectTodos.forEach((fbTodo) => {
+      // 중복 체크 (제목으로)
+      if (!combinedTodos.find((t) => t.title === fbTodo.title)) {
+        combinedTodos.push({
+          id: fbTodo.id || generateId(),
+          title: fbTodo.title,
+          description: fbTodo.description || "",
+          completed: fbTodo.completed || false,
+          priority: fbTodo.priority || "medium",
+          dueDate: fbTodo.dueDate,
+          tags: fbTodo.tags || [],
+          projectId: fbTodo.projectId,
+          createdAt: fbTodo.createdAt || dayjs().toISOString(),
+          updatedAt: fbTodo.updatedAt || dayjs().toISOString(),
+        });
+      }
+    });
+
+    return combinedTodos;
   };
 
   // 초기 데이터 로드
@@ -246,7 +332,11 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
     }
   }, []);
 
-  // localStorage 동기화
+  // Firebase 데이터 로드 후 localStorage 동기화
+  useEffect(() => {
+    loadFirebaseData();
+  }, []);
+
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.todos, JSON.stringify(todos));
   }, [todos]);
@@ -397,34 +487,33 @@ export const TodoProvider: React.FC<TodoProviderProps> = ({ children }) => {
   const getTodosByEpicId = (epicId: string) => todos.filter((todo) => todo.epicId === epicId);
   const getProjectsByEpicId = (epicId: string) => projects.filter((project) => project.epicId === epicId);
 
-  const value: TodoContextType = {
-    // 상태
-    todos,
+  const value = {
+    todos: getAllTodos(), // localStorage + Firebase 통합
     epics,
-    projects,
-
-    // Todo 함수들
+    projects: getAllProjects(), // localStorage + Firebase 통합
     addTodo,
     updateTodo,
     deleteTodo,
     toggleTodoComplete,
-
-    // Epic 함수들
     addEpic,
     updateEpic,
     deleteEpic,
-
-    // Project 함수들
     addProject,
     updateProject,
     deleteProject,
-
-    // 유틸리티 함수들
     getEpicById,
     getProjectById,
-    getTodosByProjectId,
-    getTodosByEpicId,
-    getProjectsByEpicId,
+    getTodosByProjectId: (projectId: string) => {
+      return getAllTodos().filter((todo) => todo.projectId === projectId);
+    },
+    getTodosByEpicId: (epicId: string) => {
+      return getAllTodos().filter((todo) => todo.epicId === epicId);
+    },
+    getProjectsByEpicId: (epicId: string) => {
+      return getAllProjects().filter((project) => project.epicId === epicId);
+    },
+    // Firebase 데이터 새로고침 함수 추가
+    refreshFirebaseData: loadFirebaseData,
   };
 
   return <TodoContext.Provider value={value}>{children}</TodoContext.Provider>;

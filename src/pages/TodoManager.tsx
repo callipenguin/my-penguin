@@ -23,6 +23,8 @@ import {
   Checkbox,
   IconButton,
   Divider,
+  Button,
+  Alert,
 } from "@mui/material";
 import {
   Assessment as OverviewIcon,
@@ -33,6 +35,7 @@ import {
   Add,
   Edit,
   Delete,
+  Sync,
 } from "@mui/icons-material";
 import { Todo, Epic, Project, TodoStats, EpicStats } from "../types";
 import { TodoList } from "../components/TodoList";
@@ -42,6 +45,7 @@ import { useTodo } from "../contexts/TodoContext";
 
 const TodoManager: React.FC = () => {
   const [activeTab, setActiveTab] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // TodoContext에서 상태와 함수들 가져오기
   const {
@@ -59,7 +63,21 @@ const TodoManager: React.FC = () => {
     getTodosByProjectId,
     getEpicById,
     getProjectsByEpicId,
+    refreshFirebaseData,
   } = useTodo();
+
+  // Firebase 데이터 새로고침
+  const handleRefreshFirebaseData = async () => {
+    setIsRefreshing(true);
+    try {
+      await refreshFirebaseData();
+      console.log("🔄 Firebase 데이터 새로고침 완료");
+    } catch (error) {
+      console.error("❌ Firebase 데이터 새로고침 실패:", error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   // 통계 계산
   const todoStats: TodoStats = useMemo(() => {
@@ -561,23 +579,37 @@ const TodoManager: React.FC = () => {
     <Container maxWidth="xl">
       <Box py={3}>
         {/* 헤더 */}
-        <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-          <Typography variant="h4" component="h1">
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
+          <Typography variant="h4" component="h1" fontWeight="bold">
             계획 관리자 🎯
           </Typography>
-          <Box display="flex" gap={1}>
-            <Tooltip title="할일 추가">
-              <Fab color="primary" size="small" onClick={() => setActiveTab(1)} sx={{ mr: 1 }}>
-                <TodoIcon />
-              </Fab>
-            </Tooltip>
-            <Tooltip title="에픽 추가">
-              <Fab color="secondary" size="small" onClick={() => setActiveTab(2)}>
-                <EpicIcon />
-              </Fab>
+          <Box display="flex" gap={2}>
+            <Tooltip title="Firebase 데이터 새로고침 (뽀모도로 프로젝트 동기화)">
+              <Button
+                variant="outlined"
+                startIcon={<Sync sx={{ animation: isRefreshing ? "spin 1s linear infinite" : "none" }} />}
+                onClick={handleRefreshFirebaseData}
+                disabled={isRefreshing}
+                sx={{
+                  "@keyframes spin": {
+                    "0%": { transform: "rotate(0deg)" },
+                    "100%": { transform: "rotate(360deg)" },
+                  },
+                }}
+              >
+                {isRefreshing ? "동기화 중..." : "뽀모도로 데이터 동기화"}
+              </Button>
             </Tooltip>
           </Box>
         </Box>
+
+        {/* Firebase 데이터 안내 */}
+        <Alert severity="info" sx={{ mb: 3 }}>
+          <Typography variant="body2">
+            💡 <strong>뽀모도로에서 생성한 프로젝트와 할일</strong>이 여기에 함께 표시됩니다. 동기화 버튼을 클릭하면
+            최신 데이터를 불러올 수 있어요!
+          </Typography>
+        </Alert>
 
         {/* 탭 네비게이션 */}
         <Paper sx={{ mb: 3 }}>
